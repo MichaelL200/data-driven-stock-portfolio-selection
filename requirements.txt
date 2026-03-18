@@ -6,3 +6,7 @@ pandas
 matplotlib
 python-dotenv
 pre-commit
+papermill
+ipykernel
+wikipedia
+lxml
