@@ -175,3 +175,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# S&P 500 submodule external data
+data/external/sp500

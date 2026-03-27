@@ -3,7 +3,7 @@
 ### Author(s): ...
 
 ## Overview
-This repository contains the implementation of _[brief project description]_. The project focuses on _[key goals, e.g., training specific X model, analysing Y dataset, etc.]_.  
+This repository contains the implementation of _[brief project description]_. The project focuses on _[key goals, e.g., training specific X model, analysing Y dataset, etc.]_.
 
 ## Features/Functionalities
 Key points of what exacly users can do or achive from our repository.
@@ -11,52 +11,54 @@ Key points of what exacly users can do or achive from our repository.
  - Preconfigured GH CI with pytest and flake8
  - This template README
 
-## Installation & Setup 
-To get started with this project, follow these steps:  
+## Installation & Setup
+To get started with this project, follow these steps:
 
-1. **Clone the repository**  
+1. **Clone the repository**
    ```sh
-   git clone https://github.com/your-username/your-repo.git
-   cd your-repo
+   git clone https://github.com/MichaelL200/data-driven-stock-portfolio-selection
+   cd data-driven-stock-portfolio-selection
    ```
 
-2. **Set up a virtual environment** 
+2. **Set up a virtual environment**
    ```sh
    python -m venv venv
-   source venv/bin/activate
+   source venv/bin/activate   # Linux/macOS
+   # venv\Scripts\activate    # Windows
    ```
 
-3. **Install dependencies**  
+3. **Install dependencies**
    ```sh
-   pip install -r requirements.txt
+   pip install -r requirements.txt  # external dependencies
+   pip install -e .                 # install src/ package in editable mode
    ```
 
-4. **Set up environment variables**  
-   - Copy the example `.env.example` file and rename it to `.env`.  
-   - Update the values as needed. 
+4. **Set up environment variables**
+   - Copy the example `.env.example` file and rename it to `.env`.
+   - Update the values as needed.
 
 ## Usage
-1. **Data Preprocessing**  
-   Run the preprocessing script to clean and prepare the dataset:  
+1. **Data Preprocessing**
+   Run the preprocessing script to clean and prepare the dataset:
    ```sh
    python3 -m src.dataset
    ```
 
-2. **Train the Model**  
-   Run the training script to train a machine learning model:  
+2. **Train the Model**
+   Run the training script to train a machine learning model:
    ```sh
    python3 -m src.modeling.train
    ```
 
-3. **Analyze Results**  
-   - Check the results in the `reports/` folder.  
-   - Open and explore Jupyter notebooks in the `notebooks/` folder for further analysis.  
+3. **Analyze Results**
+   - Check the results in the `reports/` folder.
+   - Open and explore Jupyter notebooks in the `notebooks/` folder for further analysis.
 
-## Examples  
+## Examples
 In some cases, the project may serve as a tool or library. For these types of repositories, it's helpful to provide a variety of usage examples to demonstrate how the code can be applied.
 
-## **Additional Resources**  
-- Detailed information about project structure is provided in the [Project Organization](#project-organization) section.  
+## **Additional Resources**
+- Detailed information about project structure is provided in the [Project Organization](#project-organization) section.
 - Further explanations about model training and evaluation are documented in the `notebooks/` folder.
 
 ## Project Organization
@@ -95,9 +97,9 @@ In some cases, the project may serve as a tool or library. For these types of re
     │
     ├── features.py             <- Code to create features for modeling
     │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
+    ├── modeling
+    │   ├── __init__.py
+    │   ├── predict.py          <- Code to run model inference with trained models
     │   └── train.py            <- Code to train models
     │
     └── plots.py                <- Code to create visualizations
