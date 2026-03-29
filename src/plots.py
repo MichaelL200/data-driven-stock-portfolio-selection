@@ -43,6 +43,56 @@ def sp500_companies_per_year_start(df: pd.DataFrame) -> pd.DataFrame:
     return result_df
 
 
+def sp500_yearly_changes(df: pd.DataFrame) -> pd.DataFrame:
+
+    df = df.copy()
+    df['date'] = pd.to_datetime(df['date'])
+    df['year'] = df['date'].dt.year
+
+    last_day_per_year = df.groupby('year').last()
+
+    last_day_per_year['tickers_set'] = last_day_per_year['tickers'].str.split(',').apply(set)
+
+    years = last_day_per_year.index.tolist()
+
+    entered_list = []
+    exited_list = []
+
+    for i in range(1, len(years)):
+        prev = last_day_per_year.iloc[i - 1]['tickers_set']
+        curr = last_day_per_year.iloc[i]['tickers_set']
+
+        entered = len(curr - prev)
+        exited = len(prev - curr)
+
+        entered_list.append(entered)
+        exited_list.append(exited)
+
+    result_df = pd.DataFrame({
+        'Year': years[1:],
+        'Entered': entered_list,
+        'Exited': exited_list
+    })
+
+    x = result_df['Year']
+    width = 0.4
+
+    plt.figure(figsize=(10, 4))
+    plt.bar(x - width/2, result_df['Entered'], width=width, label='Entered')
+    plt.bar(x + width/2, result_df['Exited'], width=width, label='Exited')
+
+    plt.title("Number of Companies Entering and Exiting S&P 500 Each Year")
+    plt.xlabel("Year")
+    plt.ylabel("Number of companies")
+    plt.legend()
+    plt.grid(axis='y')
+
+    plt.tight_layout()
+    plt.show()
+
+    return result_df
+
+
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
