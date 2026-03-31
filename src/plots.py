@@ -3,12 +3,105 @@ Code to create visualizations
 """
 
 from pathlib import Path
+import matplotlib as mpl
+from matplotlib.dates import relativedelta
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from IPython.display import display
 
 from config import PROCESSED_DATA_DIR, FIGURES_DIR
+
+
+# Paul Tol's colorblind-safe palette
+TOL_COLORS = [
+    '#0077BB',  # blue
+    '#EE7733',  # orange
+    '#009988',  # teal
+    '#CC3311',  # red
+    '#EE3377',  # magenta
+    '#33BBEE',  # cyan
+    '#BBBBBB',  # grey
+]
+
+COLORS = {
+    'entered':    '#0077BB',
+    'exited':     '#EE7733',
+    'cumulative': '#009988',
+    'num_companies': '#0077BB',
+}
+
+mpl.rcParams.update({
+    # Figure
+    'figure.figsize':       (7, 4),
+    'figure.facecolor':     'white',
+    'figure.dpi':           150,
+
+    # Axes
+    'axes.facecolor':       'white',
+    'axes.edgecolor':       '#333333',
+    'axes.linewidth':       0.8,
+    'axes.spines.top':      False,
+    'axes.spines.right':    False,
+    'axes.prop_cycle':      mpl.cycler(color=TOL_COLORS),
+
+    # Grid — off by default, enable per-plot if needed
+    'axes.grid':            False,
+    'grid.color':           '#CCCCCC',
+    'grid.linewidth':       0.5,
+    'grid.linestyle':       '--',
+
+    # Lines & markers
+    'lines.linewidth':      1.5,
+    'lines.markersize':     4,
+
+    # Font — serif to match LaTeX's Computer Modern
+    'font.family':          'serif',
+    'font.serif':           ['Computer Modern Roman', 'Latin Modern Roman',
+                             'Times New Roman', 'DejaVu Serif'],
+    'mathtext.fontset':     'cm',
+
+    # Sizes
+    'axes.titlesize':       11,
+    'axes.labelsize':       10,
+    'xtick.labelsize':      9,
+    'ytick.labelsize':      9,
+    'legend.fontsize':      9,
+    'axes.titlepad':        8,
+
+    # Ticks
+    'xtick.direction':      'out',
+    'ytick.direction':      'out',
+    'xtick.major.size':     4,
+    'ytick.major.size':     4,
+    'xtick.major.width':    0.8,
+    'ytick.major.width':    0.8,
+
+    # Legend
+    'legend.frameon':       False,
+    'legend.borderpad':     0,
+
+    # Export
+    'savefig.dpi':          300,
+    'savefig.bbox':         'tight',
+    'savefig.facecolor':    'white',
+})
+
+
+def setup_plot(title: str, xlabel: str, ylabel: str, legend: bool = True):
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax._show_legend = legend
+    return fig, ax
+
+
+def finalize_plot(fig, ax):
+    if getattr(ax, '_show_legend', False):
+        ax.legend()
+    fig.tight_layout()
+    plt.show()
 
 
 def summarize_df(df: pd.DataFrame, n_head: int = 2, n_tail: int = 2) -> pd.DataFrame:
@@ -38,18 +131,21 @@ class SP500:
             columns={'year': 'Year', 'num_companies': 'NumCompanies'}
         )
 
-        plt.figure(figsize=(10, 4))
-        plt.plot(result_df['Year'], result_df['NumCompanies'], marker='o')
-        plt.title("Number of S&P 500 Companies at the Beginning of Each Year")
-        plt.xlabel("Year")
-        plt.ylabel("Number of companies")
-        plt.grid(True)
-
-        ax = plt.gca()
+        fig, ax = setup_plot(
+            title="Number of S&P 500 Companies at the Beginning of Each Year",
+            xlabel="Year",
+            ylabel="Number of companies",
+            legend=True,
+        )
+        ax.plot(
+            result_df['Year'],
+            result_df['NumCompanies'],
+            marker='o',
+            color=COLORS['num_companies'],
+            label='Number of companies',
+        )
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-        plt.tight_layout()
-        plt.show()
+        finalize_plot(fig, ax)
 
         return result_df
 
@@ -88,20 +184,74 @@ class SP500:
         x = result_df['Year']
         width = 0.4
 
-        plt.figure(figsize=(10, 4))
-        plt.bar(x - width/2, result_df['Entered'], width=width, label='Entered')
-        plt.bar(x + width/2, result_df['Exited'], width=width, label='Exited')
-
-        plt.title("Number of Companies Entering and Exiting S&P 500 Each Year")
-        plt.xlabel("Year")
-        plt.ylabel("Number of companies")
-        plt.legend()
-        plt.grid(axis='y')
-
-        plt.tight_layout()
-        plt.show()
+        fig, ax = setup_plot(
+            title="Number of Companies Entering and Exiting S&P 500 Each Year",
+            xlabel="Year",
+            ylabel="Number of companies",
+            legend=True,
+        )
+        ax.bar(
+            x - width / 2,
+            result_df['Entered'],
+            width=width,
+            color=COLORS['entered'],
+            label='Entered',
+        )
+        ax.bar(
+            x + width / 2,
+            result_df['Exited'],
+            width=width,
+            color=COLORS['exited'],
+            label='Exited',
+        )
+        ax.grid(False, axis='x')
+        ax.grid(True, axis='y', alpha=0.3)
+        finalize_plot(fig, ax)
 
         return result_df
+
+    @classmethod
+    def count_unique_companies(cls, df: pd.DataFrame, return_count: bool = False) -> pd.DataFrame:
+
+        df = df.copy()
+        df["date"] = pd.to_datetime(df["date"])
+
+        unique_tickers = set()
+        cumulative_counts = []
+
+        for tickers_str in df["tickers"]:
+            tickers = tickers_str.split(",")
+            unique_tickers.update(tickers)
+            cumulative_counts.append(len(unique_tickers))
+
+        df["unique_cum"] = cumulative_counts
+
+        fig, ax = setup_plot(
+            title="Unique S&P 500 Companies Over Time",
+            xlabel="Date",
+            ylabel="Cumulative unique tickers",
+            legend=True,
+        )
+        ax.plot(
+            df["date"],
+            df["unique_cum"],
+            color=COLORS['cumulative'],
+            label="Cumulative Unique Companies",
+        )
+        finalize_plot(fig, ax)
+
+        start_date = df["date"].min()
+        end_date = df["date"].max()
+        diff = relativedelta(end_date, start_date)
+        years, months = diff.years, diff.months
+
+        print(
+            f"{len(unique_tickers)} unique companies were listed in the S&P 500 "
+            f"over the period {start_date.date()} → {end_date.date()} "
+            f"({years} years, {months} months)"
+        )
+
+        return df
 
 
 class YahooFinance:
