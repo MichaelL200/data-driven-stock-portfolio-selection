@@ -25,30 +25,53 @@ class SP500:
         pm.execute_notebook(str(nb_path), str(nb_path), cwd=str(nb_path.parent))
 
     @classmethod
-    def _generate(cls, nb_path: Path, src_file: Path, dst_file: Path) -> Path:
+    def _generate(
+        cls, nb_path: Path,
+        src_file: Path,
+        dst_file: Path,
+        cleanup_old: bool = False,
+        pattern_old: str = None
+    ) -> Path:
 
         if dst_file.exists():
             print(f"No generation needed: {dst_file.name} already exists.")
-            return dst_file
+        else:
+            cls._run_notebook(nb_path)
+            shutil.copy(src_file, dst_file)
+            print(f"Generated new file: {dst_file.name}")
 
-        cls._run_notebook(nb_path)
-        shutil.copy(src_file, dst_file)
-        print(f"Generated new file: {dst_file.name}")
+        if cleanup_old and pattern_old:
+            deleted: int = 0
+            for f in cls.dst_dir.glob(pattern_old):
+                if f != dst_file:
+                    f.unlink()
+                    deleted += 1
+                    print(f"Deleted old file: {f.name}")
+            if deleted:
+                print(f"Deleted {deleted} old file(s) matching pattern: {pattern_old}")
+        elif cleanup_old:
+            print("cleanup_old is True but no pattern_old provided. Skipping cleanup.")
 
         return dst_file
 
     @classmethod
-    def generate_current(cls) -> Path:
+    def generate_current(cls, cleanup_old: bool = False) -> Path:
 
         ts = datetime.now().strftime("%Y-%m-%d")
         nb_current = cls.src_dir / "sp500.ipynb"
         src_file = cls.src_dir / "sp500.csv"
         dst_file = cls.dst_dir / f"sp500_{ts}.csv"
 
-        return cls._generate(nb_current, src_file, dst_file)
+        return cls._generate(
+            nb_path=nb_current,
+            src_file=src_file,
+            dst_file=dst_file,
+            cleanup_old=cleanup_old,
+            pattern_old="sp500_????-??-??.csv"
+        )
 
     @classmethod
-    def generate_historical(cls) -> Path:
+    def generate_historical(cls, cleanup_old: bool = False) -> Path:
 
         ts_dst = datetime.now().strftime("%Y-%m-%d")
         ts_src = datetime.now().strftime("%m-%d-%Y")
@@ -57,10 +80,16 @@ class SP500:
         src_file = cls.src_dir / f"S&P 500 Historical Components & Changes({ts_src}).csv"
         dst_file = cls.dst_dir / f"sp500_historical_{ts_dst}.csv"
 
-        return cls._generate(nb_historical, src_file, dst_file)
+        return cls._generate(
+            nb_path=nb_historical,
+            src_file=src_file,
+            dst_file=dst_file,
+            cleanup_old=cleanup_old,
+            pattern_old="sp500_historical_????-??-??.csv"
+        )
 
     @classmethod
-    def _load_latest(cls, pattern: str) -> pd.DataFrame:
+    def _load(cls, pattern: str) -> pd.DataFrame:
 
         files = list(cls.dst_dir.glob(pattern))
 
@@ -72,12 +101,12 @@ class SP500:
         return pd.read_csv(latest_file)
 
     @classmethod
-    def load_current(cls) -> pd.DataFrame:
-        return cls._load_latest("sp500_????-??-??.csv")
+    def load_current(cls, save_csv: bool = False) -> pd.DataFrame:
+        return cls._load("sp500_????-??-??.csv")
 
     @classmethod
-    def load_historical(cls) -> pd.DataFrame:
-        return cls._load_latest("sp500_historical_????-??-??.csv")
+    def load_historical(cls, save_csv: bool = False) -> pd.DataFrame:
+        return cls._load("sp500_historical_????-??-??.csv")
 
 
 class YahooFinance:
@@ -87,19 +116,43 @@ class YahooFinance:
     dst_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def get_ticker_data(cls, ticker: str, save_csv: bool = False) -> pd.DataFrame:
+    def get_ticker_data(
+        cls,
+        ticker: str,
+        save_csv: bool = False,
+        cleanup_old: bool = False
+    ) -> pd.DataFrame:
 
         ts = datetime.now().strftime("%Y-%m-%d")
         file_path: Path = cls.dst_dir / f"{ticker}_{ts}.csv"
 
+        existing_files = sorted(cls.dst_dir.glob(f"{ticker}_????-??-??.csv"))
+        last_file = existing_files[-1] if existing_files else None
+
+        # Load from today's file if exists
         if file_path.exists():
             print(f"Loading existing data for {ticker} from {file_path.name}")
-            return pd.read_csv(file_path, index_col=0, parse_dates=True)
+            data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+        # Otherwise fetch from yfinance
+        else:
+            data = yf.Ticker(ticker).history(period="max", auto_adjust=False)
+            print(f"Fetched new data for {ticker}")
 
-        data = yf.Ticker(ticker).history(period="max", auto_adjust=False)
+            if save_csv:
+                data.to_csv(file_path)
+                print(f"Saved data for {ticker} to {file_path.name}")
+                last_file = file_path
 
-        if save_csv:
-            data.to_csv(f"{EXTERNAL_DATA_DIR}/{{cls.submodule_name}}/{ticker}_{ts}.csv")
+        # Cleanup old files, but always keep the last one
+        if cleanup_old and last_file:
+            deleted = 0
+            for f in existing_files:
+                if f != last_file:
+                    f.unlink()
+                    deleted += 1
+                    print(f"Deleted old file: {f.name}")
+            if deleted:
+                print(f"Deleted {deleted} old file(s) for {ticker}")
 
         return data
 
