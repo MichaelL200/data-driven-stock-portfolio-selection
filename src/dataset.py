@@ -156,6 +156,29 @@ class YahooFinance:
 
         return data
 
+    @classmethod
+    def get_ticker_data_incremential(
+        cls,
+        ticker: str,
+        save_csv: bool = False
+    ) -> pd.DataFrame:
+
+        file_path: Path = cls.dst_dir / f"{ticker}.csv"
+        data = pd.DataFrame()
+
+        if file_path.exists():
+            print(f"Loading existing data for {ticker} from {file_path.name}")
+            data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+        else:
+            data = yf.Ticker(ticker).history(period="max", auto_adjust=False)
+            print(f"Fetched new data for {ticker}")
+
+        if save_csv:
+            data.to_csv(file_path)
+            print(f"Saved data for {ticker} to {file_path.name}")
+
+        return data
+
 
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----

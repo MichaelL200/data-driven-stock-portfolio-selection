@@ -270,6 +270,62 @@ class YahooFinance:
 
         return df.iloc[start:end][["Open", "Adj Close", "Dividends", "Stock Splits"]]
 
+    @classmethod
+    def compare_tickers(
+        cls,
+        dfs: dict[str, pd.DataFrame],
+        col: str = "Adj Close"
+    ) -> pd.DataFrame:
+
+        aligned_series: dict[str, pd.Series] = {}
+
+        for label, df in dfs.items():
+
+            if col not in df.columns:
+                raise ValueError(f"Column {col} not found in {label}")
+
+            curr_df = df.copy()
+
+            # Ensure datetime index
+            if "date" in curr_df.columns:
+                idx = pd.to_datetime(curr_df["date"], utc=True)
+            elif isinstance(curr_df.index, pd.DatetimeIndex):
+                idx = curr_df.index
+                idx = idx.tz_convert("UTC") if idx.tz else idx.tz_localize("UTC")
+            else:
+                idx = pd.to_datetime(curr_df.index, utc=True)
+
+            # Align by trading day (date only) instead of exact timestamp
+            curr_df.index = idx.tz_convert(None).normalize()
+            series = curr_df[col].groupby(curr_df.index).last().sort_index()
+
+            aligned_series[label] = series
+
+        df_comp = pd.concat(aligned_series, axis=1).sort_index()
+        df_comp = df_comp.ffill()
+        df_comp = df_comp.dropna()
+
+        if df_comp.empty:
+            raise ValueError("Still no overlapping data after ffill")
+
+        # Normalize
+        df_comp = df_comp / df_comp.iloc[0] * 100
+
+        fig, ax = setup_plot(
+            title=f"Ticker Comparison ({col})",
+            xlabel="Date",
+            ylabel="Normalized Value (Start = 100)",
+            legend=True,
+        )
+        for label in df_comp.columns:
+            ax.plot(df_comp.index, df_comp[label], label=label)
+
+        ax.grid(False, axis='x')
+        ax.grid(True, axis='y', alpha=0.3)
+        finalize_plot(fig, ax)
+
+        return df_comp
+
 
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
