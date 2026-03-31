@@ -88,6 +88,13 @@ mpl.rcParams.update({
 })
 
 
+def summarize_df(df: pd.DataFrame, n_head: int = 2, n_tail: int = 2) -> pd.DataFrame:
+    print("DataFrame summary:")
+    print(df.info())
+    display(df.describe())
+    return pd.concat([df.head(n_head), df.tail(n_tail)])
+
+
 def setup_plot(title: str, xlabel: str, ylabel: str, legend: bool = True):
     fig, ax = plt.subplots()
     ax.set_title(title)
@@ -102,13 +109,6 @@ def finalize_plot(fig, ax):
         ax.legend()
     fig.tight_layout()
     plt.show()
-
-
-def summarize_df(df: pd.DataFrame, n_head: int = 2, n_tail: int = 2) -> pd.DataFrame:
-    print("DataFrame summary:")
-    print(df.info())
-    display(df.describe())
-    return pd.concat([df.head(n_head), df.tail(n_tail)])
 
 
 class SP500:
@@ -135,14 +135,13 @@ class SP500:
             title="Number of S&P 500 Companies at the Beginning of Each Year",
             xlabel="Year",
             ylabel="Number of companies",
-            legend=True,
+            legend=False,
         )
         ax.plot(
             result_df['Year'],
             result_df['NumCompanies'],
             marker='o',
             color=COLORS['num_companies'],
-            label='Number of companies',
         )
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         finalize_plot(fig, ax)
@@ -227,16 +226,15 @@ class SP500:
         df["unique_cum"] = cumulative_counts
 
         fig, ax = setup_plot(
-            title="Unique S&P 500 Companies Over Time",
+            title=f"Unique S&P 500 Companies Over Time (counted since {df['date'].min().year})",
             xlabel="Date",
             ylabel="Cumulative unique tickers",
-            legend=True,
+            legend=False,
         )
         ax.plot(
             df["date"],
             df["unique_cum"],
             color=COLORS['cumulative'],
-            label="Cumulative Unique Companies",
         )
         finalize_plot(fig, ax)
 
