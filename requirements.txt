@@ -10,3 +10,4 @@ papermill
 ipykernel
 wikipedia
 lxml
+yfinance

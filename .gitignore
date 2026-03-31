@@ -178,3 +178,4 @@ cython_debug/
 
 # S&P 500 submodule external data
 data/external/sp500
+data/external/yfinance
