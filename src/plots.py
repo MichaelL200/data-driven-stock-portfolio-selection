@@ -274,7 +274,9 @@ class YahooFinance:
     def compare_tickers(
         cls,
         dfs: dict[str, pd.DataFrame],
-        col: str = "Adj Close"
+        col: str = "Adj Close",
+        start_date: pd.Timestamp | None = None,
+        end_date: pd.Timestamp | None = None
     ) -> pd.DataFrame:
 
         aligned_series: dict[str, pd.Series] = {}
@@ -300,6 +302,15 @@ class YahooFinance:
             series = curr_df[col].groupby(curr_df.index).last().sort_index()
 
             aligned_series[label] = series
+
+        # Apply date range filtering if specified
+        if start_date is not None or end_date is not None:
+            start = pd.Timestamp(start_date) if start_date else None
+            end = pd.Timestamp(end_date) if end_date else None
+            aligned_series = {
+                label: series.loc[start:end]
+                for label, series in aligned_series.items()
+            }
 
         df_comp = pd.concat(aligned_series, axis=1).sort_index()
         df_comp = df_comp.ffill()
