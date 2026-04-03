@@ -311,6 +311,10 @@ class YahooFinance:
         # Normalize
         df_comp = df_comp / df_comp.iloc[0] * 100
 
+        # Sort by final value (highest to lowest)
+        final_values = df_comp.iloc[-1].sort_values(ascending=False)
+        df_comp = df_comp[final_values.index]
+
         fig, ax = setup_plot(
             title=f"Ticker Comparison ({col})",
             xlabel="Date",
