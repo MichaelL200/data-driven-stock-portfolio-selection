@@ -1,66 +1,72 @@
-# KNSI GOLEM Template Repository
-[![Flake8 Linting](https://github.com/Dnafivuq/golem_template/actions/workflows/lint.yml/badge.svg)](https://github.com/Dnafivuq/golem_template/actions/workflows/lint.yml)
-[![Pytest](https://github.com/Dnafivuq/golem_template/actions/workflows/test.yml/badge.svg)](https://github.com/Dnafivuq/golem_template/actions/workflows/test.yml)
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+# Project Name [![Flake8 Linting](https://github.com/Dnafivuq/golem_template/actions/workflows/lint.yml/badge.svg)](https://github.com/Dnafivuq/golem_template/actions/workflows/lint.yml) [![Pytest](https://github.com/Dnafivuq/golem_template/actions/workflows/test.yml/badge.svg)](https://github.com/Dnafivuq/golem_template/actions/workflows/test.yml) <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/"><img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" /></a>
 
+### Author: Michał Ludwiczak
 
-Template repository for KNSI GOLEM python projects made from the [cookiecutter data science template](https://github.com/drivendataorg/cookiecutter-data-science).
+## Overview
+This repository implements a system for stock portfolio selection and optimization. The project leverages Monte Carlo simulations, technical analysis and machine learning techniques to identify and optimize investment strategies. It was developed as part of the Individual Project course in the 4th semester.
 
-This repository's goal is to provide out-of-the-box boilerplate code with a clean project file structure.
-Additionally, the template includes a GitHub CI pipeline with pytest and flake8 checks implemented.
+## Features/Functionalities
+Key points of what exacly users can do or achive from our repository.
+ - Clean code structure
+ - Preconfigured GH CI with pytest and flake8
+ - This template README
 
+## Installation & Setup
+To get started with this project, follow these steps:
 
-You are free to delete any unnecessary folders and files. However, it is recommended to maintain the overall file structure to ensure clean code and compatibility with other KNSI GOLEM repositories.
-## What is here?
-### Code and Files Structure
-To ensure a transparent and easily understandable file structure for external users each module, from making plots to training models, is given its respective file in the `src` folder. A full description of the file structure is provided in the [Project Organization](#project-organization) section.
+1. **Clone the repository**
+   ```sh
+   git clone https://github.com/MichaelL200/data-driven-stock-portfolio-selection
+   cd data-driven-stock-portfolio-selection
+   ```
 
+2. **Set up a virtual environment**
 
-**How to run code in repository?**
-```bash
-python3 -m src.dataset
-```
-### Readme
-Another goal of this repository is to provide a [template README](/TEMPLATE_README.md) that can be easily edited and adapted. The README serves as a foundation to help users create their own well-structured documentation, ensuring consistency across all projects within our repository.
+   **Linux / macOS**
+   ```sh
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
 
-## Additional tips and info
-To further help with development, it is recommended to use useful tools for managing dependencies and environment configurations.
-### venv
-Python's `venv` allows you to easily manage isolated environments for your projects, enabling you to work with specific module/library versions or even different Python versions without conflicting with the globally installed Python interpreter.
+   **Windows**
+   ```
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1 #activate.bat for CMD
+   ```
 
+3. **Install dependencies**
+   ```sh
+   pip install -r requirements.txt  # external dependencies
+   pip install -e .                 # install src/ package in editable mode
+   ```
 
-How to use:
-```bash
-python3 -m venv .venv  # Create venv  
-source .venv/bin/activate  # Activate venv  
-pip install -r requirements.txt  # Install requirements to venv  
-```
-Basic Python libraries like pytest are already included in the requirements.
+4. **Set up environment variables**
+   - Copy the example `.env.example` file and rename it to `.env`.
+   - Update the values as needed.
 
----
+## Usage
+1. **Data Preprocessing**
+   Run the preprocessing script to clean and prepare the dataset:
+   ```sh
+   python3 -m src.dataset
+   ```
 
-### dotenv
-The dotenv library allows you to define environment constants or secrets, such as API keys, in a single place. It simplifies the management of environment variables by letting you configure them in a `.env` file.
+2. **Train the Model**
+   Run the training script to train a machine learning model:
+   ```sh
+   python3 -m src.modeling.train
+   ```
 
+3. **Analyze Results**
+   - Check the results in the `reports/` folder.
+   - Open and explore Jupyter notebooks in the `notebooks/` folder for further analysis.
 
-The `python-dotenv` library has already been added to the requirements.
+## Examples
+In some cases, the project may serve as a tool or library. For these types of repositories, it's helpful to provide a variety of usage examples to demonstrate how the code can be applied.
 
-**.env file example:**
-```bash
-API_KEY = "KNSI_GOLEM_API_KEY"
-```
-
-**python code example:**
-```python
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-api_key = os.getenv("API_KEY")
-```
+## **Additional Resources**
+- Detailed information about project structure is provided in the [Project Organization](#project-organization) section.
+- Further explanations about model training and evaluation are documented in the `notebooks/` folder.
 
 ## Project Organization
 
@@ -98,10 +104,11 @@ api_key = os.getenv("API_KEY")
     │
     ├── features.py             <- Code to create features for modeling
     │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
+    ├── modeling
+    │   ├── __init__.py
+    │   ├── predict.py          <- Code to run model inference with trained models
     │   └── train.py            <- Code to train models
     │
-    └── plots.py                <- Code to create visualizations
+    ├── plots.py                <- Code to create visualizations
+    └── sp500                   <- Submodule to get S&P 500 components
 ```
