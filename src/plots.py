@@ -271,6 +271,65 @@ class YahooFinance:
         return df.iloc[start:end][["Open", "Adj Close", "Dividends", "Stock Splits"]]
 
     @classmethod
+    def show_chart(
+        cls,
+        df: pd.DataFrame,
+        label: str = "Ticker",
+        col: str = "Adj Close",
+        start_date: pd.Timestamp | None = None,
+        end_date: pd.Timestamp | None = None,
+        hide_col: bool = False,
+        title: str | None = None,
+    ) -> pd.DataFrame:
+
+        if col not in df.columns:
+            raise ValueError(f"Column {col} not found in {label}")
+
+        curr_df = df.copy()
+
+        # Ensure datetime index
+        if "date" in curr_df.columns:
+            idx = pd.to_datetime(curr_df["date"], utc=True)
+        elif isinstance(curr_df.index, pd.DatetimeIndex):
+            idx = curr_df.index
+            idx = idx.tz_convert("UTC") if idx.tz else idx.tz_localize("UTC")
+        else:
+            idx = pd.to_datetime(curr_df.index, utc=True)
+
+        # Align by trading day (date only) instead of exact timestamp
+        curr_df.index = idx.tz_convert(None).normalize()
+        series = curr_df[col].groupby(curr_df.index).last().sort_index()
+
+        # Apply date range filtering if specified
+        if start_date is not None or end_date is not None:
+            start = pd.Timestamp(start_date) if start_date else None
+            end = pd.Timestamp(end_date) if end_date else None
+            series = series.loc[start:end]
+
+        df_plot = series.to_frame(name=label)
+
+        if df_plot.empty:
+            raise ValueError("No data available for plotting")
+
+        chart_title = title if title is not None else (
+            "Ticker Chart" if hide_col else f"Ticker Chart ({col})"
+        )
+
+        fig, ax = setup_plot(
+            title=chart_title,
+            xlabel="Date",
+            ylabel=col,
+            legend=True,
+        )
+        ax.plot(df_plot.index, df_plot[label], label=label)
+
+        ax.grid(False, axis='x')
+        ax.grid(True, axis='y', alpha=0.3)
+        finalize_plot(fig, ax)
+
+        return df_plot
+
+    @classmethod
     def compare_tickers(
         cls,
         dfs: dict[str, pd.DataFrame],
@@ -278,6 +337,7 @@ class YahooFinance:
         start_date: pd.Timestamp | None = None,
         end_date: pd.Timestamp | None = None,
         hide_col: bool = False,
+        title: str | None = None,
     ) -> pd.DataFrame:
 
         aligned_series: dict[str, pd.Series] = {}
@@ -333,10 +393,12 @@ class YahooFinance:
         final_values = df_comp.iloc[-1].sort_values(ascending=False)
         df_comp = df_comp[final_values.index]
 
-        title = "Ticker Comparison" if hide_col else f"Ticker Comparison ({col})"
+        chart_title = title if title is not None else (
+            "Ticker Comparison" if hide_col else f"Ticker Comparison ({col})"
+        )
 
         fig, ax = setup_plot(
-            title=title,
+            title=chart_title,
             xlabel="Date",
             ylabel="Normalized Value (Start = 100)",
             legend=True,
