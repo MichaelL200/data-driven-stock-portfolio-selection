@@ -20,18 +20,28 @@ def construct_hybrid(
     long_df.index = pd.to_datetime(long_df.index, utc=True).normalize()
     short_df.index = pd.to_datetime(short_df.index, utc=True).normalize()
 
+    price_cols = [c for c in long_df.columns if "volume" not in c.lower()]
+
     overlap = long_df.index.intersection(short_df.index)
     pre_ETF = long_df.loc[:short_df.index.min() - pd.Timedelta(days=1)]
 
-    alpha = short_df.loc[overlap].pct_change().mean() - long_df.loc[overlap].pct_change().mean()
-    pre_ETF_adjusted = pre_ETF * (1 + alpha.values[0])
+    alpha = (short_df[price_cols].loc[overlap].pct_change().mean() -
+             long_df[price_cols].loc[overlap].pct_change().mean())
 
-    last_pre_value = pre_ETF_adjusted.iloc[-1]
-    first_ETF_value = short_df.iloc[0]
-    scale = last_pre_value / first_ETF_value
-    adjusted_ETF = short_df * scale
+    pre_returns = pre_ETF[price_cols].pct_change().fillna(0)
+    pre_adjusted_prices = (1 + (pre_returns + alpha)).cumprod() * pre_ETF[price_cols].iloc[0]
 
-    hybrid_df = pd.concat([pre_ETF_adjusted, adjusted_ETF])
+    vol_cols = [c for c in long_df.columns if "volume" in c.lower()]
+    pre_adjusted_vol = pre_ETF[vol_cols]
+
+    pre_ETF_full = pd.concat([pre_adjusted_prices, pre_adjusted_vol], axis=1)
+
+    scale = pre_adjusted_prices.iloc[-1] / short_df[price_cols].iloc[0]
+
+    adjusted_short_prices = short_df[price_cols] * scale
+    adjusted_short_full = pd.concat([adjusted_short_prices, short_df[vol_cols]], axis=1)
+
+    hybrid_df = pd.concat([pre_ETF_full, adjusted_short_full]).sort_index()
 
     if save_csv:
         hybrid_df.to_csv("hybrid.csv")
