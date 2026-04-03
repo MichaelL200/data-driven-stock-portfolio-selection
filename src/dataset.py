@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 import papermill as pm
+from yaml import warnings
 import yfinance as yf
 
 from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
@@ -123,6 +124,12 @@ class YahooFinance:
         cleanup_old: bool = False
     ) -> pd.DataFrame:
 
+        msg = (
+            "get_ticker_data is deprecated and will be removed in a future version. "
+            "Use get_ticker_data_incremential instead."
+        )
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
         ts = datetime.now().strftime("%Y-%m-%d")
         file_path: Path = cls.dst_dir / f"{ticker}_{ts}.csv"
 
@@ -164,14 +171,37 @@ class YahooFinance:
     ) -> pd.DataFrame:
 
         file_path: Path = cls.dst_dir / f"{ticker}.csv"
-        data = pd.DataFrame()
 
         if file_path.exists():
+
             print(f"Loading existing data for {ticker} from {file_path.name}")
             data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+            data.index = pd.to_datetime(data.index, utc=True)
+            last_date = data.index.max()
+            today = pd.Timestamp.now(tz='UTC')
+
+            # Check if there have been trading days since last date
+            business_days = pd.bdate_range(start=last_date, end=today)
+
+            if len(business_days) > 1:  # More than just the last_date itself
+                # Fetch new data starting from last date (will include overlaps)
+                print(f"Fetching new data for {ticker} since {last_date.date()}")
+                new_data = yf.Ticker(ticker).history(start=last_date, auto_adjust=False)
+
+                if not new_data.empty:
+                    # Concatenate and remove duplicates, keeping last (most recent)
+                    data = pd.concat([data, new_data])
+                    data = data[~data.index.duplicated(keep='last')]
+                    data = data.sort_index()
+                    print(f"Updated {ticker} with new data")
+                else:
+                    print(f"No new data for {ticker}")
+            else:
+                print(f"No new trading days for {ticker} since {last_date.date()}")
         else:
+            print(f"Fetching full historical data for {ticker}")
             data = yf.Ticker(ticker).history(period="max", auto_adjust=False)
-            print(f"Fetched new data for {ticker}")
+            print(f"Fetched {len(data)} rows for {ticker}")
 
         if save_csv:
             data.to_csv(file_path)
