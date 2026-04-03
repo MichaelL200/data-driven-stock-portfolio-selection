@@ -276,7 +276,8 @@ class YahooFinance:
         dfs: dict[str, pd.DataFrame],
         col: str = "Adj Close",
         start_date: pd.Timestamp | None = None,
-        end_date: pd.Timestamp | None = None
+        end_date: pd.Timestamp | None = None,
+        hide_col: bool = False,
     ) -> pd.DataFrame:
 
         aligned_series: dict[str, pd.Series] = {}
@@ -313,21 +314,29 @@ class YahooFinance:
             }
 
         df_comp = pd.concat(aligned_series, axis=1).sort_index()
-        df_comp = df_comp.ffill()
-        df_comp = df_comp.dropna()
+        start_common = df_comp.apply(lambda s: s.first_valid_index()).max()
+        end_common = df_comp.apply(lambda s: s.last_valid_index()).min()
+        df_comp = df_comp.loc[start_common:end_common]
 
         if df_comp.empty:
-            raise ValueError("Still no overlapping data after ffill")
+            raise ValueError("No data available for plotting")
 
-        # Normalize
-        df_comp = df_comp / df_comp.iloc[0] * 100
+        # Normalize each series from its own first valid observation so that
+        # assets with shorter histories do not truncate longer series.
+        for label in df_comp.columns:
+            first_valid = df_comp[label].first_valid_index()
+            if first_valid is None:
+                continue
+            df_comp[label] = df_comp[label] / df_comp.loc[first_valid, label] * 100
 
         # Sort by final value (highest to lowest)
         final_values = df_comp.iloc[-1].sort_values(ascending=False)
         df_comp = df_comp[final_values.index]
 
+        title = "Ticker Comparison" if hide_col else f"Ticker Comparison ({col})"
+
         fig, ax = setup_plot(
-            title=f"Ticker Comparison ({col})",
+            title=title,
             xlabel="Date",
             ylabel="Normalized Value (Start = 100)",
             legend=True,

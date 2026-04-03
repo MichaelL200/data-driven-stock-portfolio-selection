@@ -5,46 +5,85 @@ Code to create features for modeling
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 
 from config import PROCESSED_DATA_DIR
+
+
+PROCESSED_DATA_DIR.mkdir(exist_ok=True)
 
 
 def construct_hybrid(
         long_df: pd.DataFrame,
         short_df: pd.DataFrame,
-        save_csv: bool = False
+        save_csv: bool = False,
+        # cleanup_old: bool = False
 ) -> pd.DataFrame:
 
-    long_df = long_df.copy()
-    short_df = short_df.copy()
-    long_df.index = pd.to_datetime(long_df.index, utc=True).normalize()
-    short_df.index = pd.to_datetime(short_df.index, utc=True).normalize()
+    ts = pd.Timestamp.now().strftime("%Y-%m-%d")
+    file_path: Path = PROCESSED_DATA_DIR / f"benchmark_{ts}.csv"
+    if file_path.exists():
+        print(f"Loading existing benchmark from {file_path}")
+        return pd.read_csv(file_path, index_col=0, parse_dates=True)
 
-    price_cols = [c for c in long_df.columns if "volume" not in c.lower()]
+    def normalize_index(df):
+        idx = df.index
+        if hasattr(idx, 'tz') and idx.tz is not None:
+            idx = idx.tz_localize(None)
+        else:
+            idx = pd.to_datetime(idx, utc=True).tz_localize(None)
+        return df.set_index(idx.normalize())
 
-    overlap = long_df.index.intersection(short_df.index)
-    pre_ETF = long_df.loc[:short_df.index.min() - pd.Timedelta(days=1)]
+    # Normalize dates
+    long_df = normalize_index(long_df)
+    short_df = normalize_index(short_df)
 
-    alpha = (short_df[price_cols].loc[overlap].pct_change().mean() -
-             long_df[price_cols].loc[overlap].pct_change().mean())
+    # Common columns
+    common_cols = short_df.columns.intersection(long_df.columns)
+    long_df = long_df[common_cols]
+    short_df = short_df[common_cols]
+    price_col = "Adj Close"
 
-    pre_returns = pre_ETF[price_cols].pct_change().fillna(0)
-    pre_adjusted_prices = (1 + (pre_returns + alpha)).cumprod() * pre_ETF[price_cols].iloc[0]
+    # Compute annual tracking difference from overlap
+    overlap_dates = long_df.index.intersection(short_df.index)
+    long_overlap = long_df.loc[overlap_dates, price_col]
+    short_overlap = short_df.loc[overlap_dates, price_col]
 
-    vol_cols = [c for c in long_df.columns if "volume" in c.lower()]
-    pre_adjusted_vol = pre_ETF[vol_cols]
+    long_total_return = long_overlap.iloc[-1] / long_overlap.iloc[0]
+    short_total_return = short_overlap.iloc[-1] / short_overlap.iloc[0]
 
-    pre_ETF_full = pd.concat([pre_adjusted_prices, pre_adjusted_vol], axis=1)
+    TD_annual = (long_total_return / short_total_return) ** (252 / len(overlap_dates)) - 1
+    daily_drag = (1 + TD_annual) ** (1 / 252)
 
-    scale = pre_adjusted_prices.iloc[-1] / short_df[price_cols].iloc[0]
+    # Adjust pre-ETF segment backward
+    pre_mask = long_df.index < short_df.index[0]
+    pre_df = long_df.loc[pre_mask].copy()
+    n_days = len(pre_df)
+    drag_factors = daily_drag ** np.arange(1, n_days + 1)
 
-    adjusted_short_prices = short_df[price_cols] * scale
-    adjusted_short_full = pd.concat([adjusted_short_prices, short_df[vol_cols]], axis=1)
+    pre_df[price_col] = pre_df[price_col] / drag_factors
 
-    hybrid_df = pd.concat([pre_ETF_full, adjusted_short_full]).sort_index()
+    # Adjust other columns proportionally
+    ratio = pre_df[price_col] / long_df.loc[pre_mask, price_col]
+    for col in common_cols:
+        if col != price_col:
+            pre_df[col] = long_df.loc[pre_mask, col] * ratio
+
+    # Scale to ETF start for continuity
+    scale_factor = short_df[price_col].iloc[0] / pre_df[price_col].iloc[-1]
+    pre_df[common_cols] = pre_df[common_cols] * scale_factor
+
+    # Combine with ETF data
+    post_df = short_df.loc[short_df.index >= short_df.index[0]]
+    hybrid_df = pd.concat([pre_df, post_df]).sort_index()
+    hybrid_df = hybrid_df[~hybrid_df.index.duplicated(keep='last')]
+
+    # Keep only trading days of long_df
+    hybrid_df = hybrid_df.loc[hybrid_df.index.intersection(long_df.index)]
 
     if save_csv:
-        hybrid_df.to_csv("hybrid.csv")
+        ts = pd.Timestamp.now().strftime("%Y-%m-%d")
+        hybrid_df.to_csv(file_path)
 
     return hybrid_df
 
