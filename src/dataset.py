@@ -188,8 +188,7 @@ class YahooFinance:
             exchange = "NYSE"
             calendar = mcal.get_calendar(exchange)
             schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
-            trading_days = mcal.date_range(schedule, frequency='1D')
-            trading_days = pd.to_datetime(trading_days, utc=True).normalize()
+            trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
             has_new_trading_days = (trading_days > last_date.normalize()).any()
 
             if has_new_trading_days:
@@ -291,8 +290,7 @@ class YahooFinance:
 
             calendar = mcal.get_calendar("NYSE")
             schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
-            trading_days = mcal.date_range(schedule, frequency="1D")
-            trading_days = pd.to_datetime(trading_days, utc=True).normalize()
+            trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
 
             if not (trading_days > last_date.normalize()).any():
                 print(f"No new trading days since {last_date.date()}. Returning cached batch data.")
