@@ -300,6 +300,10 @@ class YahooFinance:
         existing_data: dict[str, pd.DataFrame] = {}
         existing_paths = {col: path for col, path in output_paths.items() if path.exists()}
 
+        clean_tickers = [str(ticker).strip() for ticker in tickers if str(ticker).strip()]
+        if not clean_tickers:
+            return {col: pd.DataFrame() for col in output_columns}
+
         yf_start = None
         if existing_paths:
 
@@ -315,14 +319,106 @@ class YahooFinance:
             trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
 
             if not (trading_days > last_date.normalize()).any():
-                print(f"No new trading days since {last_date.date()}. Returning cached batch data.")
+                print(f"No new trading days since {last_date.date()}. Checking for missing ticker data...")
+
+                # Identify tickers with incomplete data
+                # A ticker has incomplete data if it has significant NaN values
+                tickers_with_incomplete_data = []
+
+                for ticker in clean_tickers:
+                    if ticker in existing_data[reference_col].columns:
+
+                        ticker_data = existing_data[reference_col][ticker]
+                        # Calculate percentage of NaN values
+                        nan_ratio = ticker_data.isna().sum() / len(ticker_data)
+
+                        # If more than 50% NaN, mark as incomplete
+                        if nan_ratio > 0.5:
+                            tickers_with_incomplete_data.append((ticker, nan_ratio))
+                    else:
+                        # Ticker not in columns at all (shouldn't happen if data was merged)
+                        tickers_with_incomplete_data.append((ticker, 1.0))
+
+                if tickers_with_incomplete_data:
+
+                    print(
+                        f"Found {len(tickers_with_incomplete_data)} tickers with >50% missing data. "
+                        f"Attempting to re-download..."
+                    )
+
+                    if len(tickers_with_incomplete_data) <= 20:
+                        for ticker, nan_ratio in tickers_with_incomplete_data:
+                            print(f"  {ticker}: {nan_ratio*100:.1f}% NaN")
+                    else:
+                        for ticker, nan_ratio in tickers_with_incomplete_data[:10]:
+                            print(f"  {ticker}: {nan_ratio*100:.1f}% NaN")
+                        print(f"  ... and {len(tickers_with_incomplete_data) - 10} more")
+
+                    all_missing_tickers = [t[0] for t in tickers_with_incomplete_data]
+
+                    # Try to download data for incomplete tickers
+                    downloaded_parts_missing: dict[str, list[pd.DataFrame]] = {
+                        col: [] for col in output_columns
+                    }
+
+                    for batch_index, batch_start in enumerate(range(0, len(all_missing_tickers), batch_size)):
+
+                        batch = all_missing_tickers[batch_start:batch_start + batch_size]
+                        download_kwargs = {
+                            "auto_adjust": False,
+                            "timeout": 30,
+                            "progress": False,
+                            "period": "max",
+                        }
+
+                        print(f"Downloading batch {batch_index + 1} ({len(batch)} tickers)...")
+                        batch_df = yf.download(batch, **download_kwargs)
+
+                        if batch_df.empty:
+                            print(f"Warning: empty download for batch {batch_index + 1}")
+                        else:
+                            normalized_batch = normalize_download_frame(batch_df, batch)
+                            for source_col, target_col in (
+                                ("Close", "Close"),
+                                ("Open", "Open"),
+                                ("High", "High"),
+                                ("Low", "Low"),
+                                ("Volume", "Volume"),
+                                ("Adj Close", "Adj_Close"),
+                            ):
+                                if source_col in normalized_batch.columns.get_level_values(0):
+                                    extracted = normalized_batch.xs(source_col, level=0, axis=1)
+                                    extracted.columns = extracted.columns.astype(str)
+                                    extracted = normalize_index(extracted)
+                                    downloaded_parts_missing[target_col].append(extracted)
+
+                        if batch_start + batch_size < len(all_missing_tickers):
+                            time.sleep(sleep_seconds + random.uniform(0, 3))
+
+                    # Merge newly downloaded data with existing data
+                    # Use outer join to preserve all dates, then take last (prefer new data)
+                    for col in output_columns:
+
+                        parts = downloaded_parts_missing[col]
+                        batch_combined = pd.concat(parts, axis=1) if parts else pd.DataFrame()
+                        batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
+
+                        if not batch_combined.empty:
+                            batch_combined.index = pd.to_datetime(batch_combined.index, utc=True).normalize()
+                            # Merge by combining: existing data + new data, prefer non-null values
+                            for ticker in all_missing_tickers:
+                                if ticker in batch_combined.columns and ticker in existing_data[col].columns:
+                                    # Update null values in existing data with new data
+                                    mask = existing_data[col][ticker].isna()
+                                    existing_data[col].loc[mask, ticker] = batch_combined.loc[mask, ticker]
+
+                    print(f"Successfully re-downloaded and merged data for {len(all_missing_tickers)} tickers")
+                else:
+                    print("No tickers found with significant missing data (>50% NaN)")
+
                 return existing_data
 
             yf_start = last_date
-
-        clean_tickers = [str(ticker).strip() for ticker in tickers if str(ticker).strip()]
-        if not clean_tickers:
-            return {col: pd.DataFrame() for col in output_columns}
 
         downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in output_columns}
 
