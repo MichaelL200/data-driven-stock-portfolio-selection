@@ -222,6 +222,11 @@ class YahooFinance:
             tickers_col: str = "tickers"
     ) -> List[str]:
 
+        warnings.warn(
+            "get_unique_tickers is deprecated and will be removed in a future version.",
+            DeprecationWarning, stacklevel=2
+        )
+
         if tickers_col not in sp500_components.columns:
             raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
 
@@ -242,11 +247,28 @@ class YahooFinance:
     @classmethod
     def download_batch(
         cls,
-        tickers: list[str],
+        sp500_components: pd.DataFrame,
         batch_size: int = 200,
         sleep_seconds: float = 2.0,
         save_csv: bool = False,
     ) -> dict[str, pd.DataFrame]:
+
+        # Extract unique tickers from sp500_components
+        tickers_col = "tickers"
+        if tickers_col not in sp500_components.columns:
+            raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
+
+        exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
+        tickers = (
+            exploded.explode()
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .drop_duplicates()
+        )
+        tickers = sorted(tickers.tolist())
+        print("Number of unique tickers extracted:", len(tickers))
 
         output_columns = ["Close", "Open", "High", "Low", "Volume", "Adj_Close"]
         output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
