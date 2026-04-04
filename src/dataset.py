@@ -6,6 +6,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
+import pandas_market_calendars as mcal
 
 import papermill as pm
 from yaml import warnings
@@ -181,9 +182,14 @@ class YahooFinance:
             today = pd.Timestamp.now(tz='UTC')
 
             # Check if there have been trading days since last date
-            business_days = pd.bdate_range(start=last_date, end=today)
+            exchange = "NYSE"
+            calendar = mcal.get_calendar(exchange)
+            schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
+            trading_days = mcal.date_range(schedule, frequency='1D')
+            trading_days = pd.to_datetime(trading_days, utc=True).normalize()
+            has_new_trading_days = (trading_days > last_date.normalize()).any()
 
-            if len(business_days) > 1:  # More than just the last_date itself
+            if has_new_trading_days:
                 # Fetch new data starting from last date (will include overlaps)
                 print(f"Fetching new data for {ticker} since {last_date.date()}")
                 new_data = yf.Ticker(ticker).history(start=last_date, auto_adjust=False)
