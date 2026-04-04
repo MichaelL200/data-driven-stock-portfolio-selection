@@ -3,8 +3,11 @@ Code to download or generate data
 """
 
 import shutil
+import time
+import random
 from datetime import datetime
 from pathlib import Path
+from typing import List
 import pandas as pd
 import pandas_market_calendars as mcal
 
@@ -214,6 +217,156 @@ class YahooFinance:
             print(f"Saved data for {ticker} to {file_path.name}")
 
         return data
+
+    def get_unique_tickers(
+            sp500_components: pd.DataFrame,
+            tickers_col: str = "tickers"
+    ) -> List[str]:
+
+        if tickers_col not in sp500_components.columns:
+            raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
+
+        exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
+        unique_tickers = (
+            exploded.explode()
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .drop_duplicates()
+        )
+
+        print("Number of unique tickers extracted:", len(unique_tickers))
+
+        return sorted(unique_tickers.tolist())
+
+    @classmethod
+    def download_batch(
+        cls,
+        tickers: list[str],
+        batch_size: int = 200,
+        sleep_seconds: float = 2.0,
+        save_csv: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+
+        output_columns = ["Close", "Open", "High", "Low", "Volume", "Adj_Close"]
+        output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
+
+        def normalize_index(df: pd.DataFrame) -> pd.DataFrame:
+            normalized_index = pd.to_datetime(df.index, utc=True).normalize()
+            result = df.copy()
+            result.index = normalized_index
+            return result
+
+        def load_existing(path: Path) -> pd.DataFrame:
+            data = pd.read_csv(path, index_col=0, parse_dates=True)
+            return normalize_index(data)
+
+        def normalize_download_frame(batch_df: pd.DataFrame, batch_tickers: list[str]) -> pd.DataFrame:
+            if not isinstance(batch_df.columns, pd.MultiIndex):
+                ticker = str(batch_tickers[0])
+                batch_df = batch_df.copy()
+                batch_df.columns = pd.MultiIndex.from_tuples(
+                    [(col, ticker) for col in batch_df.columns],
+                    names=["Field", "Ticker"],
+                )
+                return batch_df
+
+            result = batch_df.copy()
+            result.columns = result.columns.set_names(["Field", "Ticker"])
+            return result
+
+        existing_data: dict[str, pd.DataFrame] = {}
+        existing_paths = {col: path for col, path in output_paths.items() if path.exists()}
+
+        yf_start = None
+        if existing_paths:
+
+            for col, path in existing_paths.items():
+                existing_data[col] = load_existing(path)
+
+            reference_col = "Close" if "Close" in existing_data else next(iter(existing_data))
+            last_date = existing_data[reference_col].index.max()
+            today = pd.Timestamp.now(tz="UTC").normalize()
+
+            calendar = mcal.get_calendar("NYSE")
+            schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
+            trading_days = mcal.date_range(schedule, frequency="1D")
+            trading_days = pd.to_datetime(trading_days, utc=True).normalize()
+
+            if not (trading_days > last_date.normalize()).any():
+                print(f"No new trading days since {last_date.date()}. Returning cached batch data.")
+                return existing_data
+
+            yf_start = last_date
+
+        clean_tickers = [str(ticker).strip() for ticker in tickers if str(ticker).strip()]
+        if not clean_tickers:
+            return {col: pd.DataFrame() for col in output_columns}
+
+        downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in output_columns}
+
+        for batch_index, batch_start in enumerate(range(0, len(clean_tickers), batch_size)):
+
+            batch = clean_tickers[batch_start:batch_start + batch_size]
+            download_kwargs = {
+                "auto_adjust": False,
+                "timeout": 30,
+                "progress": False,
+            }
+            if yf_start is None:
+                download_kwargs["period"] = "max"
+            else:
+                download_kwargs["start"] = yf_start
+
+            batch_df = yf.download(batch, **download_kwargs)
+
+            if batch_df.empty:
+                print(f"Warning: empty download for batch {batch_index + 1} ({len(batch)} tickers)")
+            else:
+                normalized_batch = normalize_download_frame(batch_df, batch)
+                for source_col, target_col in (
+                    ("Close", "Close"),
+                    ("Open", "Open"),
+                    ("High", "High"),
+                    ("Low", "Low"),
+                    ("Volume", "Volume"),
+                    ("Adj Close", "Adj_Close"),
+                ):
+                    if source_col in normalized_batch.columns.get_level_values(0):
+                        extracted = normalized_batch.xs(source_col, level=0, axis=1)
+                        extracted.columns = extracted.columns.astype(str)
+                        extracted = normalize_index(extracted)
+                        downloaded_parts[target_col].append(extracted)
+
+            if batch_start + batch_size < len(clean_tickers):
+                time.sleep(sleep_seconds + random.uniform(0, 3))
+
+        result: dict[str, pd.DataFrame] = {}
+        for col in output_columns:
+            batch_combined = pd.concat(downloaded_parts[col], axis=1) if downloaded_parts[col] else pd.DataFrame()
+            batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
+
+            if not batch_combined.empty:
+                batch_combined.index = pd.to_datetime(batch_combined.index, utc=True).normalize()
+
+            existing_df = existing_data[col] if col in existing_data else pd.DataFrame()
+
+            if existing_df.empty and batch_combined.empty:
+                combined = pd.DataFrame()
+            else:
+                combined = pd.concat([existing_df, batch_combined], axis=0, join="outer")
+                combined = combined[~combined.index.duplicated(keep="last")].sort_index()
+                combined.index = pd.to_datetime(combined.index, utc=True).normalize()
+
+            result[col] = combined
+
+        if save_csv:
+            for col, data in result.items():
+                data.to_csv(output_paths[col])
+                print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
+
+        return result
 
 
 def main(
