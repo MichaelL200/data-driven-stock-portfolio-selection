@@ -29,9 +29,9 @@ To get started with this project, follow these steps:
    ```
 
    **Windows**
-   ```
+   ```text
    python -m venv .venv
-   .venv\Scripts\Activate.ps1 #activate.bat for CMD
+   .venv\Scripts\Activate.ps1 # activate.bat for CMD
    ```
 
 3. **Install dependencies**
@@ -41,10 +41,19 @@ To get started with this project, follow these steps:
    ```
 
 4. **Set up environment variables**
-   - Copy the example `.env.example` file and rename it to `.env`.
-   - Update the values as needed.
+   - Create a `.env` file in the project root by running:
 
-## Usage
+     **Linux / macOS**
+      ```sh
+     cp .env.example .env
+      ```
+     **Windows**
+      ```text
+     Copy-Item .env.example .env # copy .env.example .env for CMD
+      ```
+   - Replace `your_api_key_here` with your actual API key, available at [eodhd.com/cp/dashboard](https://eodhd.com/cp/dashboard).
+
+<!-- ## Usage
 1. **Data Preprocessing**
    Run the preprocessing script to clean and prepare the dataset:
    ```sh
@@ -62,7 +71,7 @@ To get started with this project, follow these steps:
    - Open and explore Jupyter notebooks in the `notebooks/` folder for further analysis.
 
 ## Examples
-In some cases, the project may serve as a tool or library. For these types of repositories, it's helpful to provide a variety of usage examples to demonstrate how the code can be applied.
+In some cases, the project may serve as a tool or library. For these types of repositories, it's helpful to provide a variety of usage examples to demonstrate how the code can be applied. -->
 
 ## **Additional Resources**
 - Detailed information about project structure is provided in the [Project Organization](#project-organization) section.

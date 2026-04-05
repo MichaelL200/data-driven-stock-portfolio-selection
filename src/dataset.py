@@ -2,6 +2,7 @@
 Code to download or generate data
 """
 
+import os
 import shutil
 import time
 import random
@@ -429,9 +430,17 @@ class EODHD:
     def download(
         cls,
         tickers: List[str],
-        api_key: str,
+        api_key: str = None,
         save_csv: bool = False
     ) -> dict[str, pd.DataFrame]:
+
+        if api_key is None:
+            api_key = os.getenv("EODHD_API_KEY")
+        if api_key is None:
+            raise ValueError(
+                "EODHD API key not found. Set the EODHD_API_KEY environment variable "
+                "or pass the key explicitly via the `api_key` parameter."
+            )
 
         client = eodhd.APIClient(api_key)
         result: dict[str, pd.DataFrame] = {}
