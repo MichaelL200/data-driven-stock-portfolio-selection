@@ -19,6 +19,49 @@ import eodhd
 from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
 
+# ---------------------------------------------------------------------------
+# Module-level helpers shared across dataset classes
+# ---------------------------------------------------------------------------
+
+# Mapping from yfinance field names to the output column names used when saving
+_YF_COLUMN_MAP = [
+    ("Close", "Close"),
+    ("Open", "Open"),
+    ("High", "High"),
+    ("Low", "Low"),
+    ("Volume", "Volume"),
+    ("Adj Close", "Adj_Close"),
+]
+
+
+def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
+    """Return *df* with its DatetimeIndex converted to UTC midnight."""
+    normalized_index = pd.to_datetime(df.index, utc=True).normalize()
+    result = df.copy()
+    result.index = normalized_index
+    return result
+
+
+def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -> bool:
+    """Return True if there are NYSE trading days strictly after *last_date*."""
+    if today is None:
+        today = pd.Timestamp.now(tz="UTC").normalize()
+    calendar = mcal.get_calendar("NYSE")
+    schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
+    trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
+    return (trading_days > last_date.normalize()).any()
+
+
+def _extract_batch_columns(normalized_batch: pd.DataFrame, downloaded_parts: dict) -> None:
+    """Append each OHLCV slice from *normalized_batch* into *downloaded_parts*."""
+    for source_col, target_col in _YF_COLUMN_MAP:
+        if source_col in normalized_batch.columns.get_level_values(0):
+            extracted = normalized_batch.xs(source_col, level=0, axis=1)
+            extracted.columns = extracted.columns.astype(str)
+            extracted = _normalize_index(extracted)
+            downloaded_parts[target_col].append(extracted)
+
+
 class SP500:
 
     submodule_name: str = "sp500"
@@ -139,11 +182,7 @@ class YahooFinance:
             today = pd.Timestamp.now(tz='UTC')
 
             # Check if there have been trading days since last date
-            exchange = "NYSE"
-            calendar = mcal.get_calendar(exchange)
-            schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
-            trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
-            has_new_trading_days = (trading_days > last_date.normalize()).any()
+            has_new_trading_days = _has_new_trading_days(last_date, today)
 
             if has_new_trading_days:
                 # Fetch new data starting from last date (will include overlaps)
@@ -201,15 +240,9 @@ class YahooFinance:
         output_columns = ["Close", "Open", "High", "Low", "Volume", "Adj_Close"]
         output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
 
-        def normalize_index(df: pd.DataFrame) -> pd.DataFrame:
-            normalized_index = pd.to_datetime(df.index, utc=True).normalize()
-            result = df.copy()
-            result.index = normalized_index
-            return result
-
         def load_existing(path: Path) -> pd.DataFrame:
             data = pd.read_csv(path, index_col=0, parse_dates=True)
-            return normalize_index(data)
+            return _normalize_index(data)
 
         def normalize_download_frame(batch_df: pd.DataFrame, batch_tickers: list[str]) -> pd.DataFrame:
             if not isinstance(batch_df.columns, pd.MultiIndex):
@@ -242,11 +275,7 @@ class YahooFinance:
             last_date = existing_data[reference_col].index.max()
             today = pd.Timestamp.now(tz="UTC").normalize()
 
-            calendar = mcal.get_calendar("NYSE")
-            schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
-            trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
-
-            if not (trading_days > last_date.normalize()).any():
+            if not _has_new_trading_days(last_date, today):
                 print(f"No new trading days since {last_date.date()}.")
 
                 if not redownload_missing_tickers:
@@ -312,19 +341,7 @@ class YahooFinance:
                             print(f"Warning: empty download for batch {batch_index + 1}")
                         else:
                             normalized_batch = normalize_download_frame(batch_df, batch)
-                            for source_col, target_col in (
-                                ("Close", "Close"),
-                                ("Open", "Open"),
-                                ("High", "High"),
-                                ("Low", "Low"),
-                                ("Volume", "Volume"),
-                                ("Adj Close", "Adj_Close"),
-                            ):
-                                if source_col in normalized_batch.columns.get_level_values(0):
-                                    extracted = normalized_batch.xs(source_col, level=0, axis=1)
-                                    extracted.columns = extracted.columns.astype(str)
-                                    extracted = normalize_index(extracted)
-                                    downloaded_parts_missing[target_col].append(extracted)
+                            _extract_batch_columns(normalized_batch, downloaded_parts_missing)
 
                         if batch_start + batch_size < len(all_missing_tickers):
                             time.sleep(sleep_seconds + random.uniform(0, 3))
@@ -375,19 +392,7 @@ class YahooFinance:
                 print(f"Warning: empty download for batch {batch_index + 1} ({len(batch)} tickers)")
             else:
                 normalized_batch = normalize_download_frame(batch_df, batch)
-                for source_col, target_col in (
-                    ("Close", "Close"),
-                    ("Open", "Open"),
-                    ("High", "High"),
-                    ("Low", "Low"),
-                    ("Volume", "Volume"),
-                    ("Adj Close", "Adj_Close"),
-                ):
-                    if source_col in normalized_batch.columns.get_level_values(0):
-                        extracted = normalized_batch.xs(source_col, level=0, axis=1)
-                        extracted.columns = extracted.columns.astype(str)
-                        extracted = normalize_index(extracted)
-                        downloaded_parts[target_col].append(extracted)
+                _extract_batch_columns(normalized_batch, downloaded_parts)
 
             if batch_start + batch_size < len(clean_tickers):
                 time.sleep(sleep_seconds + random.uniform(0, 3))
@@ -479,10 +484,7 @@ class EODHD:
                 last_date = valid_dates.max().normalize()
                 today = pd.Timestamp.now(tz="UTC").normalize()
 
-                calendar = mcal.get_calendar("NYSE")
-                schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
-                trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
-                has_new_trading_days = (trading_days > last_date).any()
+                has_new_trading_days = _has_new_trading_days(last_date, today)
 
                 if not has_new_trading_days:
                     print(f"No new trading days for {clean_ticker} since {last_date.date()}")
