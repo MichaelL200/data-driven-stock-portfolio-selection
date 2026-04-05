@@ -61,7 +61,6 @@ class StockDataSource:
     corresponding ``dst_dir`` directory is created automatically.
     """
 
-    # Must be overridden by each subclass (e.g. "yfinance" or "eodhd")
     submodule_name: str
     dst_dir: Path
 
@@ -74,12 +73,10 @@ class StockDataSource:
 
     @classmethod
     def _get_file_path(cls, ticker: str) -> Path:
-        """Return the CSV file path for a given ticker symbol."""
         return cls.dst_dir / f"{ticker.strip()}.csv"
 
     @classmethod
     def load_ticker(cls, ticker: str) -> pd.DataFrame:
-        """Load saved per-ticker CSV data from ``dst_dir``."""
         clean_ticker = str(ticker).strip()
         file_path = cls._get_file_path(clean_ticker)
         if not file_path.exists():
