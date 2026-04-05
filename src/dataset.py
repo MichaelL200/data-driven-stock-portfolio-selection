@@ -54,6 +54,41 @@ def _extract_batch_columns(normalized_batch: pd.DataFrame, downloaded_parts: dic
             downloaded_parts[target_col].append(extracted)
 
 
+class StockDataSource:
+    """Base class for per-ticker stock market data sources.
+
+    Subclasses must define a ``submodule_name`` class variable. The
+    corresponding ``dst_dir`` directory is created automatically.
+    """
+
+    # Must be overridden by each subclass (e.g. "yfinance" or "eodhd")
+    submodule_name: str
+    dst_dir: Path
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        name = getattr(cls, "submodule_name", None)
+        if name is not None:
+            cls.dst_dir = EXTERNAL_DATA_DIR / name
+            cls.dst_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def _get_file_path(cls, ticker: str) -> Path:
+        """Return the CSV file path for a given ticker symbol."""
+        return cls.dst_dir / f"{ticker.strip()}.csv"
+
+    @classmethod
+    def load_ticker(cls, ticker: str) -> pd.DataFrame:
+        """Load saved per-ticker CSV data from ``dst_dir``."""
+        clean_ticker = str(ticker).strip()
+        file_path = cls._get_file_path(clean_ticker)
+        if not file_path.exists():
+            raise FileNotFoundError(
+                f"No saved {cls.submodule_name} data file found for ticker: {clean_ticker}"
+            )
+        return pd.read_csv(file_path)
+
+
 class SP500:
 
     submodule_name: str = "sp500"
@@ -150,14 +185,12 @@ class SP500:
         return cls._load("sp500_historical_????-??-??.csv")
 
 
-class YahooFinance:
+class YahooFinance(StockDataSource):
 
     submodule_name: str = "yfinance"
-    dst_dir: Path = EXTERNAL_DATA_DIR / submodule_name
-    dst_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def get_ticker_data_incremential(
+    def get_ticker_data_incremental(
         cls,
         ticker: str,
         save_csv: bool = False
@@ -417,14 +450,12 @@ class YahooFinance:
         return result
 
 
-class EODHD:
+class EODHD(StockDataSource):
 
     submodule_name: str = "eodhd"
-    dst_dir: Path = EXTERNAL_DATA_DIR / submodule_name
-    dst_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def download(
+    def download_tickers(
         cls,
         tickers: List[str],
         api_key: str = None,
@@ -538,17 +569,6 @@ class EODHD:
                 print(f"Saved data for {clean_ticker} to {file_path.name}")
 
         return result
-
-    @classmethod
-    def load(cls, ticker: str) -> pd.DataFrame:
-
-        clean_ticker = str(ticker).strip()
-        file_path = cls.dst_dir / f"{clean_ticker}.csv"
-
-        if not file_path.exists():
-            raise FileNotFoundError(f"No saved EODHD data file found for ticker: {clean_ticker}")
-
-        return pd.read_csv(file_path)
 
 
 def main(
