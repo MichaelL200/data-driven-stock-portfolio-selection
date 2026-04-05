@@ -19,11 +19,6 @@ import eodhd
 from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
 
-# ---------------------------------------------------------------------------
-# Module-level helpers shared across dataset classes
-# ---------------------------------------------------------------------------
-
-# Mapping from yfinance field names to the output column names used when saving
 _YF_COLUMN_MAP = [
     ("Close", "Close"),
     ("Open", "Open"),
@@ -35,7 +30,6 @@ _YF_COLUMN_MAP = [
 
 
 def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
-    """Return *df* with its DatetimeIndex converted to UTC midnight."""
     normalized_index = pd.to_datetime(df.index, utc=True).normalize()
     result = df.copy()
     result.index = normalized_index
@@ -43,7 +37,6 @@ def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -> bool:
-    """Return True if there are NYSE trading days strictly after *last_date*."""
     if today is None:
         today = pd.Timestamp.now(tz="UTC").normalize()
     calendar = mcal.get_calendar("NYSE")
@@ -53,7 +46,6 @@ def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -
 
 
 def _extract_batch_columns(normalized_batch: pd.DataFrame, downloaded_parts: dict) -> None:
-    """Append each OHLCV slice from *normalized_batch* into *downloaded_parts*."""
     for source_col, target_col in _YF_COLUMN_MAP:
         if source_col in normalized_batch.columns.get_level_values(0):
             extracted = normalized_batch.xs(source_col, level=0, axis=1)
