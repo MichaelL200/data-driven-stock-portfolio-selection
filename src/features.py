@@ -17,16 +17,17 @@ def construct_hybrid(
         long_df: pd.DataFrame,
         short_df: pd.DataFrame,
         save_csv: bool = False,
-        cleanup_old: bool = False
+        cleanup_old: bool = False,
+        name: str = "benchmark"
 ) -> pd.DataFrame:
 
     ts = pd.Timestamp.now().strftime("%Y-%m-%d")
-    file_path: Path = PROCESSED_DATA_DIR / f"benchmark_{ts}.csv"
-    existing_files = sorted(PROCESSED_DATA_DIR.glob("benchmark_????-??-??.csv"))
+    file_path: Path = PROCESSED_DATA_DIR / f"{name}_{ts}.csv"
+    existing_files = sorted(PROCESSED_DATA_DIR.glob(f"{name}_????-??-??.csv"))
     last_file = None
 
     if file_path.exists():
-        print(f"Loading existing benchmark from {file_path}")
+        print(f"Loading existing {name} from {file_path}")
         hybrid_df = pd.read_csv(file_path, index_col=0, parse_dates=True)
         last_file = file_path
     else:
@@ -88,7 +89,7 @@ def construct_hybrid(
 
         if save_csv:
             hybrid_df.to_csv(file_path)
-            print(f"Saved benchmark to {file_path}")
+            print(f"Saved {name} to {file_path}")
             last_file = file_path
     if cleanup_old and last_file:
         deleted = 0
@@ -98,9 +99,9 @@ def construct_hybrid(
                 deleted += 1
                 print(f"Deleted old file: {f.name}")
         if deleted:
-            print(f"Deleted {deleted} old file(s) for benchmark")
+            print(f"Deleted {deleted} old file(s) for {name}")
     elif cleanup_old:
-        print("cleanup_old is True but no benchmark file was saved or loaded. Skipping cleanup.")
+        print(f"cleanup_old is True but no {name} file was saved or loaded. Skipping cleanup.")
 
     return hybrid_df
 
