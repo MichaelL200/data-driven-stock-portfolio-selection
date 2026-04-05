@@ -12,7 +12,6 @@ import pandas as pd
 import pandas_market_calendars as mcal
 
 import papermill as pm
-from yaml import warnings
 import yfinance as yf
 import eodhd
 
@@ -122,53 +121,6 @@ class YahooFinance:
     dst_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def get_ticker_data(
-        cls,
-        ticker: str,
-        save_csv: bool = False,
-        cleanup_old: bool = False
-    ) -> pd.DataFrame:
-
-        msg = (
-            "get_ticker_data is deprecated and will be removed in a future version. "
-            "Use get_ticker_data_incremential instead."
-        )
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-
-        ts = datetime.now().strftime("%Y-%m-%d")
-        file_path: Path = cls.dst_dir / f"{ticker}_{ts}.csv"
-
-        existing_files = sorted(cls.dst_dir.glob(f"{ticker}_????-??-??.csv"))
-        last_file = existing_files[-1] if existing_files else None
-
-        # Load from today's file if exists
-        if file_path.exists():
-            print(f"Loading existing data for {ticker} from {file_path.name}")
-            data = pd.read_csv(file_path, index_col=0, parse_dates=True)
-        # Otherwise fetch from yfinance
-        else:
-            data = yf.Ticker(ticker).history(period="max", auto_adjust=False)
-            print(f"Fetched new data for {ticker}")
-
-            if save_csv:
-                data.to_csv(file_path)
-                print(f"Saved data for {ticker} to {file_path.name}")
-                last_file = file_path
-
-        # Cleanup old files, but always keep the last one
-        if cleanup_old and last_file:
-            deleted = 0
-            for f in existing_files:
-                if f != last_file:
-                    f.unlink()
-                    deleted += 1
-                    print(f"Deleted old file: {f.name}")
-            if deleted:
-                print(f"Deleted {deleted} old file(s) for {ticker}")
-
-        return data
-
-    @classmethod
     def get_ticker_data_incremential(
         cls,
         ticker: str,
@@ -217,33 +169,6 @@ class YahooFinance:
             print(f"Saved data for {ticker} to {file_path.name}")
 
         return data
-
-    def get_unique_tickers(
-            sp500_components: pd.DataFrame,
-            tickers_col: str = "tickers"
-    ) -> List[str]:
-
-        warnings.warn(
-            "get_unique_tickers is deprecated and will be removed in a future version.",
-            DeprecationWarning, stacklevel=2
-        )
-
-        if tickers_col not in sp500_components.columns:
-            raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
-
-        exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
-        unique_tickers = (
-            exploded.explode()
-            .astype(str)
-            .str.strip()
-            .replace("", pd.NA)
-            .dropna()
-            .drop_duplicates()
-        )
-
-        print("Number of unique tickers extracted:", len(unique_tickers))
-
-        return sorted(unique_tickers.tolist())
 
     @classmethod
     def download_batch(
