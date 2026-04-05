@@ -468,6 +468,7 @@ class YahooFinance:
 
         result: dict[str, pd.DataFrame] = {}
         for col in output_columns:
+
             batch_combined = pd.concat(downloaded_parts[col], axis=1) if downloaded_parts[col] else pd.DataFrame()
             batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
 
@@ -521,7 +522,74 @@ class EODHD:
             if file_path.exists():
                 print(f"Loading existing data for {clean_ticker} from {file_path.name}")
                 frame = pd.read_csv(file_path)
-                result[clean_ticker] = frame
+
+                if frame.empty or "date" not in frame.columns:
+                    print(
+                        f"Skipping incremental update for {clean_ticker}: "
+                        "missing or empty 'date' column"
+                    )
+                    result[clean_ticker] = frame
+                    continue
+
+                parsed_dates = pd.to_datetime(frame["date"], errors="coerce", utc=True)
+                valid_dates = parsed_dates.dropna()
+
+                if valid_dates.empty:
+                    print(
+                        f"Skipping incremental update for {clean_ticker}: "
+                        "no valid dates in existing file"
+                    )
+                    result[clean_ticker] = frame
+                    continue
+
+                last_date = valid_dates.max().normalize()
+                today = pd.Timestamp.now(tz="UTC").normalize()
+
+                calendar = mcal.get_calendar("NYSE")
+                schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
+                trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
+                has_new_trading_days = (trading_days > last_date).any()
+
+                if not has_new_trading_days:
+                    print(f"No new trading days for {clean_ticker} since {last_date.date()}")
+                    result[clean_ticker] = frame
+                    continue
+
+                from_date = last_date.strftime("%Y-%m-%d")
+
+                try:
+                    raw_data = client.get_eod_historical_stock_market_data(
+                        symbol=clean_ticker,
+                        period="d",
+                        order="a",
+                        from_date=from_date,
+                    )
+                except Exception as exc:
+                    print(f"Failed to download incremental data for {clean_ticker}: {exc}")
+                    result[clean_ticker] = frame
+                    continue
+
+                new_frame = pd.DataFrame(raw_data)
+
+                if new_frame.empty:
+                    print(f"No new API data returned for {clean_ticker}")
+                    result[clean_ticker] = frame
+                    continue
+
+                combined = pd.concat([frame, new_frame], ignore_index=True)
+                combined["date"] = pd.to_datetime(combined["date"], errors="coerce", utc=True)
+                combined = combined.dropna(subset=["date"])
+                combined = combined.sort_values("date")
+                combined = combined.drop_duplicates(subset=["date"], keep="last")
+                combined["date"] = combined["date"].dt.strftime("%Y-%m-%d")
+                combined = combined.reset_index(drop=True)
+
+                result[clean_ticker] = combined
+
+                if save_csv:
+                    combined.to_csv(file_path, index=False)
+                    print(f"Updated data for {clean_ticker} in {file_path.name}")
+
                 continue
 
             try:
