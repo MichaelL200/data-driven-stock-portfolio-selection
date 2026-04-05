@@ -12,3 +12,4 @@ wikipedia
 lxml
 yfinance
 pandas_market_calendars
+eodhd

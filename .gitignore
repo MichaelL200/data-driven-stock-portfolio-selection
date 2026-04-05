@@ -177,6 +177,4 @@ cython_debug/
 .pypirc
 
 # data files
-data/external/sp500
-data/external/yfinance
-data/processed/
+data/

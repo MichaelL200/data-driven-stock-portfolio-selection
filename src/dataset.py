@@ -251,6 +251,7 @@ class YahooFinance:
         batch_size: int = 200,
         sleep_seconds: float = 2.0,
         save_csv: bool = False,
+        redownload_missing_tickers: bool = False,
     ) -> dict[str, pd.DataFrame]:
 
         # Extract unique tickers from sp500_components
@@ -319,7 +320,13 @@ class YahooFinance:
             trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
 
             if not (trading_days > last_date.normalize()).any():
-                print(f"No new trading days since {last_date.date()}. Checking for missing ticker data...")
+                print(f"No new trading days since {last_date.date()}.")
+
+                if not redownload_missing_tickers:
+                    print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
+                    return existing_data
+
+                print("Checking for missing ticker data...")
 
                 # Identify tickers with incomplete data
                 # A ticker has incomplete data if it has significant NaN values
