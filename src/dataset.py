@@ -14,6 +14,7 @@ import pandas_market_calendars as mcal
 import papermill as pm
 from yaml import warnings
 import yfinance as yf
+import eodhd
 
 from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
@@ -490,6 +491,68 @@ class YahooFinance:
                 print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
 
         return result
+
+
+class EODHD:
+
+    submodule_name: str = "eodhd"
+    dst_dir: Path = EXTERNAL_DATA_DIR / submodule_name
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def download(
+        cls,
+        tickers: List[str],
+        api_key: str,
+        save_csv: bool = False
+    ) -> dict[str, pd.DataFrame]:
+
+        client = eodhd.APIClient(api_key)
+        result: dict[str, pd.DataFrame] = {}
+
+        for ticker in tickers:
+
+            clean_ticker = str(ticker).strip()
+            if not clean_ticker:
+                continue
+
+            file_path = cls.dst_dir / f"{clean_ticker}.csv"
+
+            if file_path.exists():
+                print(f"Loading existing data for {clean_ticker} from {file_path.name}")
+                frame = pd.read_csv(file_path)
+                result[clean_ticker] = frame
+                continue
+
+            try:
+                raw_data = client.get_eod_historical_stock_market_data(
+                    symbol=clean_ticker,
+                    period="d",
+                    order="a"
+                )
+            except Exception as exc:
+                print(f"Failed to download data for {clean_ticker}: {exc}")
+                continue
+
+            frame = pd.DataFrame(raw_data)
+            result[clean_ticker] = frame
+
+            if save_csv:
+                frame.to_csv(file_path, index=False)
+                print(f"Saved data for {clean_ticker} to {file_path.name}")
+
+        return result
+
+    @classmethod
+    def load(cls, ticker: str) -> pd.DataFrame:
+
+        clean_ticker = str(ticker).strip()
+        file_path = cls.dst_dir / f"{clean_ticker}.csv"
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"No saved EODHD data file found for ticker: {clean_ticker}")
+
+        return pd.read_csv(file_path)
 
 
 def main(
