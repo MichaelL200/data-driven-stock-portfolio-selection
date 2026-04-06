@@ -5,11 +5,11 @@
 ## Overview
 This repository implements a system for stock portfolio selection and optimization. The project leverages Monte Carlo simulations, technical analysis and machine learning techniques to identify and optimize investment strategies. It was developed as part of the Individual Project course in the 4th semester.
 
-## Features/Functionalities
+<!-- ## Features/Functionalities
 Key points of what exacly users can do or achive from our repository.
  - Clean code structure
  - Preconfigured GH CI with pytest and flake8
- - This template README
+ - This template README -->
 
 ## Installation & Setup
 To get started with this project, follow these steps:
