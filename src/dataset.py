@@ -28,6 +28,15 @@ _YF_COLUMN_MAP = [
     ("Adj Close", "Adj_Close"),
 ]
 
+_EODHD_COLUMN_MAP = [
+    ("close", "Close"),
+    ("open", "Open"),
+    ("high", "High"),
+    ("low", "Low"),
+    ("volume", "Volume"),
+    ("adjusted_close", "Adj_Close"),
+]
+
 
 def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -> bool:
     if today is None:
@@ -35,7 +44,120 @@ def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -
     calendar = mcal.get_calendar("NYSE")
     schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
     trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
-    return (trading_days > last_date.normalize()).any()
+    completed_trading_days = trading_days[trading_days < today]
+    return (completed_trading_days > last_date.normalize()).any()
+
+
+def _normalize_columnar_index(df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy()
+    result.index = pd.to_datetime(result.index, utc=True).normalize()
+    result.index.name = "Date"
+    return result
+
+
+def _load_columnar_frame(path: Path) -> pd.DataFrame:
+    data = pd.read_csv(path, index_col=0, parse_dates=True)
+    return _normalize_columnar_index(data)
+
+
+def _combine_columnar_frames(
+    existing_frames: dict[str, pd.DataFrame],
+    downloaded_parts: dict[str, list[pd.DataFrame]],
+    output_columns: list[str],
+) -> dict[str, pd.DataFrame]:
+
+    combined_result: dict[str, pd.DataFrame] = {}
+
+    for col in output_columns:
+
+        batch_combined = (
+            pd.concat(downloaded_parts[col], axis=1)
+            if downloaded_parts[col]
+            else pd.DataFrame()
+        )
+        batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
+        if not batch_combined.empty:
+            batch_combined.index = pd.to_datetime(batch_combined.index, utc=True).normalize()
+
+        existing_df = existing_frames[col] if col in existing_frames else pd.DataFrame()
+        if existing_df.empty and batch_combined.empty:
+            combined = pd.DataFrame()
+        else:
+            combined = pd.concat([existing_df, batch_combined], axis=0, join="outer")
+            combined = combined[~combined.index.duplicated(keep="last")].sort_index()
+            combined.index = pd.to_datetime(combined.index, utc=True).normalize()
+            combined.index.name = "Date"
+
+        if not combined.empty:
+            combined.index.name = "Date"
+
+        combined_result[col] = combined
+
+    return combined_result
+
+
+def _find_incomplete_tickers(
+    reference_frame: pd.DataFrame,
+    tickers: list[str],
+) -> list[tuple[str, float]]:
+
+    incomplete: list[tuple[str, float]] = []
+
+    for ticker_name in tickers:
+        if ticker_name in reference_frame.columns:
+            ticker_data = reference_frame[ticker_name]
+            nan_ratio = ticker_data.isna().sum() / len(ticker_data)
+            if nan_ratio > 0.5:
+                incomplete.append((ticker_name, nan_ratio))
+        else:
+            incomplete.append((ticker_name, 1.0))
+
+    return incomplete
+
+
+def _print_incomplete_tickers(incomplete: list[tuple[str, float]]) -> None:
+
+    if len(incomplete) <= 20:
+        for ticker_name, nan_ratio in incomplete:
+            print(f"  {ticker_name}: {nan_ratio*100:.1f}% NaN")
+        return
+
+    for ticker_name, nan_ratio in incomplete[:10]:
+        print(f"  {ticker_name}: {nan_ratio*100:.1f}% NaN")
+    print(f"  ... and {len(incomplete) - 10} more")
+
+
+def _print_status_report(status_map: dict[str, str], header: str) -> None:
+
+    if not status_map:
+        return
+
+    print(header)
+    for ticker_name in sorted(status_map):
+        print(f"  {ticker_name}: {status_map[ticker_name]}")
+
+
+def _merge_missing_ticker_data(
+    existing_frames: dict[str, pd.DataFrame],
+    downloaded_parts: dict[str, list[pd.DataFrame]],
+    missing_tickers: list[str],
+    output_columns: list[str],
+) -> None:
+
+    for col in output_columns:
+
+        parts = downloaded_parts[col]
+        batch_combined = pd.concat(parts, axis=1) if parts else pd.DataFrame()
+        batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
+
+        if batch_combined.empty:
+            continue
+
+        batch_combined.index = pd.to_datetime(batch_combined.index, utc=True).normalize()
+        for ticker_name in missing_tickers:
+            if ticker_name in batch_combined.columns and ticker_name in existing_frames[col].columns:
+                mask = existing_frames[col][ticker_name].isna()
+                existing_frames[col].loc[mask, ticker_name] = batch_combined.loc[mask, ticker_name]
 
 
 class SP500:
@@ -167,10 +289,7 @@ class YahooFinance(StockDataSource):
 
     @staticmethod
     def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
-        normalized_index = pd.to_datetime(df.index, utc=True).normalize()
-        result = df.copy()
-        result.index = normalized_index
-        return result
+        return _normalize_columnar_index(df)
 
     @staticmethod
     def _extract_batch_columns(normalized_batch: pd.DataFrame, downloaded_parts: dict) -> None:
@@ -194,6 +313,7 @@ class YahooFinance(StockDataSource):
             print(f"Loading existing data for {ticker} from {file_path.name}")
             loaded = pd.read_csv(file_path, index_col=0, parse_dates=True)
             loaded.index = pd.to_datetime(loaded.index, utc=True)
+            loaded.index.name = "Date"
             return loaded
 
         def update_existing_data(existing: pd.DataFrame) -> pd.DataFrame:
@@ -212,15 +332,19 @@ class YahooFinance(StockDataSource):
                 print(f"No new data for {ticker}")
                 return existing
 
+            new_data.index.name = "Date"
+
             updated = pd.concat([existing, new_data])
             updated = updated[~updated.index.duplicated(keep="last")]
             updated = updated.sort_index()
+            updated.index.name = "Date"
             print(f"Updated {ticker} with new data")
             return updated
 
         def fetch_full_history() -> pd.DataFrame:
             print(f"Fetching full historical data for {ticker}")
             fetched = yf.Ticker(ticker).history(period="max", auto_adjust=False)
+            fetched.index.name = "Date"
             print(f"Fetched {len(fetched)} rows for {ticker}")
             return fetched
 
@@ -247,8 +371,9 @@ class YahooFinance(StockDataSource):
 
         output_columns = ["Close", "Open", "High", "Low", "Volume", "Adj_Close"]
         output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
+        ticker_status: dict[str, str] = {}
 
-        def extract_unique_tickers() -> list[str]:
+        def _parse_sp500_tickers() -> list[str]:
 
             tickers_col = "tickers"
             if tickers_col not in sp500_components.columns:
@@ -267,10 +392,6 @@ class YahooFinance(StockDataSource):
             print("Number of unique tickers extracted:", len(clean))
             return clean
 
-        def load_existing(path: Path) -> pd.DataFrame:
-            data = pd.read_csv(path, index_col=0, parse_dates=True)
-            return cls._normalize_index(data)
-
         def normalize_download_frame(batch_df: pd.DataFrame, batch_tickers: list[str]) -> pd.DataFrame:
 
             if not isinstance(batch_df.columns, pd.MultiIndex):
@@ -285,32 +406,6 @@ class YahooFinance(StockDataSource):
             result = batch_df.copy()
             result.columns = result.columns.set_names(["Field", "Ticker"])
             return result
-
-        def find_incomplete_tickers(
-            reference_frame: pd.DataFrame,
-            tickers: list[str]
-        ) -> list[tuple[str, float]]:
-
-            incomplete: list[tuple[str, float]] = []
-            for ticker_name in tickers:
-                if ticker_name in reference_frame.columns:
-                    ticker_data = reference_frame[ticker_name]
-                    nan_ratio = ticker_data.isna().sum() / len(ticker_data)
-                    if nan_ratio > 0.5:
-                        incomplete.append((ticker_name, nan_ratio))
-                else:
-                    incomplete.append((ticker_name, 1.0))
-            return incomplete
-
-        def print_incomplete_tickers(incomplete: list[tuple[str, float]]) -> None:
-            if len(incomplete) <= 20:
-                for ticker_name, nan_ratio in incomplete:
-                    print(f"  {ticker_name}: {nan_ratio*100:.1f}% NaN")
-                return
-
-            for ticker_name, nan_ratio in incomplete[:10]:
-                print(f"  {ticker_name}: {nan_ratio*100:.1f}% NaN")
-            print(f"  ... and {len(incomplete) - 10} more")
 
         def download_parts_for_tickers(
             tickers_to_download: list[str],
@@ -338,67 +433,30 @@ class YahooFinance(StockDataSource):
 
                 if batch_df.empty:
                     print(f"Warning: empty download for batch {batch_index + 1}")
+                    for ticker_name in batch:
+                        ticker_status[ticker_name] = "missing_from_batch"
                 else:
                     normalized_batch = normalize_download_frame(batch_df, batch)
                     cls._extract_batch_columns(normalized_batch, downloaded_parts_local)
+                    available_tickers = set(normalized_batch.columns.get_level_values("Ticker"))
+                    for ticker_name in batch:
+                        if ticker_name in available_tickers:
+                            ticker_status[ticker_name] = "downloaded"
+                        else:
+                            ticker_status[ticker_name] = "missing_from_batch"
 
                 if batch_start + batch_size < len(tickers_to_download):
                     time.sleep(sleep_seconds + random.uniform(0, 3))
 
             return downloaded_parts_local
 
-        def merge_missing_ticker_data(
-            existing_frames: dict[str, pd.DataFrame],
-            downloaded_parts_local: dict[str, list[pd.DataFrame]],
-            missing_tickers: list[str],
-        ) -> None:
-
-            for col in output_columns:
-
-                parts = downloaded_parts_local[col]
-                batch_combined = pd.concat(parts, axis=1) if parts else pd.DataFrame()
-                batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
-
-                if batch_combined.empty:
-                    continue
-
-                batch_combined.index = pd.to_datetime(batch_combined.index, utc=True).normalize()
-                for ticker_name in missing_tickers:
-                    if ticker_name in batch_combined.columns and ticker_name in existing_frames[col].columns:
-                        mask = existing_frames[col][ticker_name].isna()
-                        existing_frames[col].loc[mask, ticker_name] = batch_combined.loc[mask, ticker_name]
-
         def combine_final_frames(
             existing_frames: dict[str, pd.DataFrame],
             downloaded_parts_local: dict[str, list[pd.DataFrame]],
         ) -> dict[str, pd.DataFrame]:
+            return _combine_columnar_frames(existing_frames, downloaded_parts_local, output_columns)
 
-            combined_result: dict[str, pd.DataFrame] = {}
-
-            for col in output_columns:
-
-                batch_combined = (
-                    pd.concat(downloaded_parts_local[col], axis=1)
-                    if downloaded_parts_local[col]
-                    else pd.DataFrame()
-                )
-                batch_combined = batch_combined.loc[:, ~batch_combined.columns.duplicated(keep="last")]
-                if not batch_combined.empty:
-                    batch_combined.index = pd.to_datetime(batch_combined.index, utc=True).normalize()
-
-                existing_df = existing_frames[col] if col in existing_frames else pd.DataFrame()
-                if existing_df.empty and batch_combined.empty:
-                    combined = pd.DataFrame()
-                else:
-                    combined = pd.concat([existing_df, batch_combined], axis=0, join="outer")
-                    combined = combined[~combined.index.duplicated(keep="last")].sort_index()
-                    combined.index = pd.to_datetime(combined.index, utc=True).normalize()
-
-                combined_result[col] = combined
-
-            return combined_result
-
-        clean_tickers = extract_unique_tickers()
+        clean_tickers = _parse_sp500_tickers()
         if not clean_tickers:
             return {col: pd.DataFrame() for col in output_columns}
 
@@ -409,7 +467,7 @@ class YahooFinance(StockDataSource):
         if existing_paths:
 
             for col, path in existing_paths.items():
-                existing_data[col] = load_existing(path)
+                existing_data[col] = _load_columnar_frame(path)
 
             reference_col = "Close" if "Close" in existing_data else next(iter(existing_data))
             reference_frame = existing_data[reference_col]
@@ -417,29 +475,33 @@ class YahooFinance(StockDataSource):
             today = pd.Timestamp.now(tz="UTC").normalize()
 
             if not _has_new_trading_days(last_date, today):
+
                 print(f"No new trading days since {last_date.date()}.")
 
                 if not redownload_missing_tickers:
                     print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
+                    _print_status_report(ticker_status, "YahooFinance per-ticker status:")
                     return existing_data
 
                 print("Checking for missing ticker data...")
-                tickers_with_incomplete_data = find_incomplete_tickers(reference_frame, clean_tickers)
+                tickers_with_incomplete_data = _find_incomplete_tickers(reference_frame, clean_tickers)
 
                 if not tickers_with_incomplete_data:
                     print("No tickers found with significant missing data (>50% NaN)")
+                    _print_status_report(ticker_status, "YahooFinance per-ticker status:")
                     return existing_data
 
                 print(
                     f"Found {len(tickers_with_incomplete_data)} tickers with >50% missing data. "
                     f"Attempting to re-download..."
                 )
-                print_incomplete_tickers(tickers_with_incomplete_data)
+                _print_incomplete_tickers(tickers_with_incomplete_data)
 
                 all_missing_tickers = [ticker_name for ticker_name, _ in tickers_with_incomplete_data]
                 downloaded_parts_missing = download_parts_for_tickers(all_missing_tickers, period="max")
-                merge_missing_ticker_data(existing_data, downloaded_parts_missing, all_missing_tickers)
+                _merge_missing_ticker_data(existing_data, downloaded_parts_missing, all_missing_tickers, output_columns)
                 print(f"Successfully re-downloaded and merged data for {len(all_missing_tickers)} tickers")
+                _print_status_report(ticker_status, "YahooFinance per-ticker status:")
                 return existing_data
 
             yf_start = last_date
@@ -456,6 +518,8 @@ class YahooFinance(StockDataSource):
                 data.to_csv(output_paths[col])
                 print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
 
+        _print_status_report(ticker_status, "YahooFinance per-ticker status:")
+
         return result
 
 
@@ -468,125 +532,189 @@ class EODHD(StockDataSource):
         cls,
         tickers: List[str],
         api_key: str = None,
-        save_csv: bool = False
+        client: eodhd.APIClient = None,
+        batch_size: int = 200,
+        sleep_seconds: float = 2.0,
+        save_csv: bool = False,
+        redownload_missing_tickers: bool = False,
     ) -> dict[str, pd.DataFrame]:
 
-        if api_key is None:
-            api_key = os.getenv("EODHD_API_KEY")
-        if api_key is None:
-            raise ValueError(
-                "EODHD API key not found. Set the EODHD_API_KEY environment variable "
-                "or pass the key explicitly via the `api_key` parameter."
-            )
+        if client is None:
+            if api_key is None:
+                api_key = os.getenv("EODHD_API_KEY")
+            if api_key is None:
+                raise ValueError(
+                    "EODHD API key not found. Set the EODHD_API_KEY environment variable "
+                    "or pass the key explicitly via the `api_key` parameter."
+                )
+            client = eodhd.APIClient(api_key)
+        output_columns = [target for _, target in _EODHD_COLUMN_MAP]
+        output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
+        ticker_status: dict[str, str] = {}
 
-        client = eodhd.APIClient(api_key)
-        result: dict[str, pd.DataFrame] = {}
+        def _deduplicate_tickers() -> list[str]:
+            clean = [str(ticker).strip() for ticker in tickers if str(ticker).strip()]
+            unique = sorted(dict.fromkeys(clean))
+            print("Number of unique tickers extracted:", len(unique))
+            return unique
 
-        def parse_valid_dates(frame: pd.DataFrame) -> pd.Series:
-            parsed_dates = pd.to_datetime(frame["date"], errors="coerce", utc=True)
-            return parsed_dates.dropna()
+        def normalize_eodhd_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
-        def merge_existing_and_new(frame: pd.DataFrame, new_frame: pd.DataFrame) -> pd.DataFrame:
-            combined_frame = pd.concat([frame, new_frame], ignore_index=True)
-            combined_frame["date"] = pd.to_datetime(combined_frame["date"], errors="coerce", utc=True)
-            combined_frame = combined_frame.dropna(subset=["date"])
-            combined_frame = combined_frame.sort_values("date")
-            combined_frame = combined_frame.drop_duplicates(subset=["date"], keep="last")
-            combined_frame["date"] = combined_frame["date"].dt.strftime("%Y-%m-%d")
-            return combined_frame.reset_index(drop=True)
+            if frame.empty or "date" not in frame.columns:
+                return pd.DataFrame()
 
-        def download_incremental(clean_ticker: str, from_date: str) -> pd.DataFrame:
-            raw_data = client.get_eod_historical_stock_market_data(
-                symbol=clean_ticker,
-                period="d",
-                order="a",
-                from_date=from_date,
-            )
+            normalized = frame.copy()
+            normalized["date"] = pd.to_datetime(normalized["date"], errors="coerce", utc=True)
+            normalized = normalized.dropna(subset=["date"]).sort_values("date")
+            normalized = normalized.drop_duplicates(subset=["date"], keep="last")
+            if normalized.empty:
+                return pd.DataFrame()
+
+            normalized = normalized.set_index("date").rename_axis("Date")
+            normalized.index = pd.to_datetime(normalized.index, utc=True).normalize()
+            normalized.index.name = "Date"
+            return normalized
+
+        def download_for_ticker(clean_ticker: str, from_date: str = None) -> pd.DataFrame:
+            kwargs = {
+                "symbol": clean_ticker,
+                "period": "d",
+                "order": "a",
+            }
+            if from_date is not None:
+                kwargs["from_date"] = from_date
+            raw_data = client.get_eod_historical_stock_market_data(**kwargs)
             return pd.DataFrame(raw_data)
 
-        def download_full(clean_ticker: str) -> pd.DataFrame:
-            raw_data = client.get_eod_historical_stock_market_data(
-                symbol=clean_ticker,
-                period="d",
-                order="a"
-            )
-            return pd.DataFrame(raw_data)
+        def extract_downloaded_parts(
+            ticker_frame: pd.DataFrame,
+            clean_ticker: str,
+            downloaded_parts: dict[str, list[pd.DataFrame]],
+        ) -> None:
 
-        for ticker in tickers:
+            if ticker_frame.empty:
+                return
 
-            clean_ticker = str(ticker).strip()
-            if not clean_ticker:
-                continue
+            renamed = ticker_frame.copy()
+            renamed.columns = [str(col).lower() for col in renamed.columns]
 
-            file_path = cls.dst_dir / f"{clean_ticker}.csv"
+            for source_col, target_col in _EODHD_COLUMN_MAP:
+                if source_col in renamed.columns:
+                    extracted = renamed[[source_col]].rename(columns={source_col: clean_ticker})
+                    extracted = extracted.apply(pd.to_numeric, errors="coerce")
+                    downloaded_parts[target_col].append(extracted)
 
-            if file_path.exists():
-                print(f"Loading existing data for {clean_ticker} from {file_path.name}")
-                frame = pd.read_csv(file_path)
+        def download_parts_for_tickers(
+            tickers_to_download: list[str],
+            *,
+            from_date: str = None,
+        ) -> dict[str, list[pd.DataFrame]]:
 
-                if frame.empty or "date" not in frame.columns:
-                    print(
-                        f"Skipping incremental update for {clean_ticker}: "
-                        "missing or empty 'date' column"
-                    )
-                    result[clean_ticker] = frame
-                    continue
+            downloaded_parts_local: dict[str, list[pd.DataFrame]] = {col: [] for col in output_columns}
 
-                valid_dates = parse_valid_dates(frame)
+            for batch_index, batch_start in enumerate(range(0, len(tickers_to_download), batch_size)):
+                batch = tickers_to_download[batch_start:batch_start + batch_size]
+                print(f"Downloading batch {batch_index + 1} ({len(batch)} tickers)...")
 
-                if valid_dates.empty:
-                    print(
-                        f"Skipping incremental update for {clean_ticker}: "
-                        "no valid dates in existing file"
-                    )
-                    result[clean_ticker] = frame
-                    continue
+                for clean_ticker in batch:
+                    try:
+                        frame = download_for_ticker(clean_ticker, from_date=from_date)
+                    except Exception as exc:
+                        print(f"Failed to download data for {clean_ticker}: {exc}")
+                        ticker_status[clean_ticker] = "failed"
+                        continue
 
-                last_date = valid_dates.max().normalize()
+                    normalized = normalize_eodhd_frame(frame)
+                    if normalized.empty:
+                        print(f"No valid data returned for {clean_ticker}")
+                        ticker_status[clean_ticker] = "no_valid_data"
+                        continue
+
+                    extract_downloaded_parts(normalized, clean_ticker, downloaded_parts_local)
+                    ticker_status[clean_ticker] = "downloaded"
+
+                if batch_start + batch_size < len(tickers_to_download):
+                    time.sleep(sleep_seconds + random.uniform(0, 3))
+
+            return downloaded_parts_local
+
+        clean_tickers = _deduplicate_tickers()
+        if not clean_tickers:
+            return {col: pd.DataFrame() for col in output_columns}
+
+        existing_data: dict[str, pd.DataFrame] = {}
+        existing_paths = {col: path for col, path in output_paths.items() if path.exists()}
+
+        eodhd_start = None
+        if existing_paths:
+
+            for col, path in existing_paths.items():
+                existing_data[col] = _load_columnar_frame(path)
+
+            reference_col = "Close" if "Close" in existing_data else next(iter(existing_data))
+            reference_frame = existing_data[reference_col]
+
+            if not reference_frame.empty:
+
+                last_date = reference_frame.index.max()
                 today = pd.Timestamp.now(tz="UTC").normalize()
 
-                has_new_trading_days = _has_new_trading_days(last_date, today)
+                if not _has_new_trading_days(last_date, today):
 
-                if not has_new_trading_days:
-                    print(f"No new trading days for {clean_ticker} since {last_date.date()}")
-                    result[clean_ticker] = frame
-                    continue
+                    print(f"No new trading days since {last_date.date()}.")
+                    if not redownload_missing_tickers:
+                        print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
+                        for clean_ticker in clean_tickers:
+                            if clean_ticker in reference_frame.columns:
+                                ticker_status[clean_ticker] = "skipped_already_up_to_date"
+                            else:
+                                ticker_status[clean_ticker] = "skipped_not_in_existing_dataset"
+                        _print_status_report(ticker_status, "EODHD per-ticker status:")
+                        return existing_data
 
-                from_date = last_date.strftime("%Y-%m-%d")
+                    print("Checking for missing ticker data...")
+                    tickers_with_incomplete_data = _find_incomplete_tickers(reference_frame, clean_tickers)
 
-                try:
-                    new_frame = download_incremental(clean_ticker, from_date)
-                except Exception as exc:
-                    print(f"Failed to download incremental data for {clean_ticker}: {exc}")
-                    result[clean_ticker] = frame
-                    continue
+                    if not tickers_with_incomplete_data:
+                        print("No tickers found with significant missing data (>50% NaN)")
+                        _print_status_report(ticker_status, "EODHD per-ticker status:")
+                        return existing_data
 
-                if new_frame.empty:
-                    print(f"No new API data returned for {clean_ticker}")
-                    result[clean_ticker] = frame
-                    continue
+                    print(
+                        f"Found {len(tickers_with_incomplete_data)} tickers with >50% missing data. "
+                        f"Attempting to re-download..."
+                    )
+                    _print_incomplete_tickers(tickers_with_incomplete_data)
 
-                combined = merge_existing_and_new(frame, new_frame)
+                    all_missing_tickers = [ticker_name for ticker_name, _ in tickers_with_incomplete_data]
+                    downloaded_parts_missing = download_parts_for_tickers(all_missing_tickers, from_date=None)
+                    _merge_missing_ticker_data(
+                        existing_data,
+                        downloaded_parts_missing,
+                        all_missing_tickers,
+                        output_columns,
+                    )
 
-                result[clean_ticker] = combined
+                    for ticker_name in all_missing_tickers:
+                        ticker_status.setdefault(ticker_name, "redownload_missing_attempted")
 
-                if save_csv:
-                    combined.to_csv(file_path, index=False)
-                    print(f"Updated data for {clean_ticker} in {file_path.name}")
+                    print(
+                        f"Successfully re-downloaded and merged data for {len(all_missing_tickers)} tickers"
+                    )
+                    _print_status_report(ticker_status, "EODHD per-ticker status:")
+                    return existing_data
 
-                continue
+                eodhd_start = last_date.strftime("%Y-%m-%d")
 
-            try:
-                frame = download_full(clean_ticker)
-            except Exception as exc:
-                print(f"Failed to download data for {clean_ticker}: {exc}")
-                continue
+        downloaded_parts = download_parts_for_tickers(clean_tickers, from_date=eodhd_start)
+        result = _combine_columnar_frames(existing_data, downloaded_parts, output_columns)
 
-            result[clean_ticker] = frame
+        if save_csv:
+            for col, data in result.items():
+                data.to_csv(output_paths[col])
+                print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
 
-            if save_csv:
-                frame.to_csv(file_path, index=False)
-                print(f"Saved data for {clean_ticker} to {file_path.name}")
+        _print_status_report(ticker_status, "EODHD per-ticker status:")
 
         return result
 
