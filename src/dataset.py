@@ -598,9 +598,10 @@ class EODHD(StockDataSource):
             renamed = ticker_frame.copy()
             renamed.columns = [str(col).lower() for col in renamed.columns]
 
+            column_name = clean_ticker.removesuffix(".US")
             for source_col, target_col in _EODHD_COLUMN_MAP:
                 if source_col in renamed.columns:
-                    extracted = renamed[[source_col]].rename(columns={source_col: clean_ticker})
+                    extracted = renamed[[source_col]].rename(columns={source_col: column_name})
                     extracted = extracted.apply(pd.to_numeric, errors="coerce")
                     downloaded_parts[target_col].append(extracted)
 
@@ -719,16 +720,17 @@ class EODHD(StockDataSource):
         return result
 
     @classmethod
-    def download_batch(
+    def download(
         cls,
         sp500_components: pd.DataFrame,
         api_key: str = None,
         client: eodhd.APIClient = None,
-        batch_size: int = 200,
-        sleep_seconds: float = 2.0,
         save_csv: bool = False,
         redownload_missing_tickers: bool = False,
     ) -> dict[str, pd.DataFrame]:
+
+        if client is None and api_key is None:
+            api_key = os.getenv("EODHD_API_KEY")
 
         tickers_col = "tickers"
         if tickers_col not in sp500_components.columns:
@@ -746,20 +748,13 @@ class EODHD(StockDataSource):
         clean = [str(ticker).strip() for ticker in sorted(raw_tickers.tolist()) if str(ticker).strip()]
         eodhd_tickers = [f"{ticker}.US" for ticker in clean]
 
-        result = cls.download_tickers(
+        return cls.download_tickers(
             tickers=eodhd_tickers,
             api_key=api_key,
             client=client,
-            batch_size=batch_size,
-            sleep_seconds=sleep_seconds,
             save_csv=save_csv,
             redownload_missing_tickers=redownload_missing_tickers,
         )
-
-        return {
-            col: df.rename(columns=lambda c: c.removesuffix(".US")) if not df.empty else df
-            for col, df in result.items()
-        }
 
 
 def main(
