@@ -718,6 +718,49 @@ class EODHD(StockDataSource):
 
         return result
 
+    @classmethod
+    def download_batch(
+        cls,
+        sp500_components: pd.DataFrame,
+        api_key: str = None,
+        client: eodhd.APIClient = None,
+        batch_size: int = 200,
+        sleep_seconds: float = 2.0,
+        save_csv: bool = False,
+        redownload_missing_tickers: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+
+        tickers_col = "tickers"
+        if tickers_col not in sp500_components.columns:
+            raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
+
+        exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
+        raw_tickers = (
+            exploded.explode()
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .drop_duplicates()
+        )
+        clean = [str(ticker).strip() for ticker in sorted(raw_tickers.tolist()) if str(ticker).strip()]
+        eodhd_tickers = [f"{ticker}.US" for ticker in clean]
+
+        result = cls.download_tickers(
+            tickers=eodhd_tickers,
+            api_key=api_key,
+            client=client,
+            batch_size=batch_size,
+            sleep_seconds=sleep_seconds,
+            save_csv=save_csv,
+            redownload_missing_tickers=redownload_missing_tickers,
+        )
+
+        return {
+            col: df.rename(columns=lambda c: c.removesuffix(".US")) if not df.empty else df
+            for col, df in result.items()
+        }
+
 
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
