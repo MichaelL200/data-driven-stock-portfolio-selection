@@ -412,108 +412,107 @@ class YahooFinance:
 
         return df_comp
 
-    @classmethod
-    def coverage_over_time(
-        cls,
-        price_data: dict[str, pd.DataFrame],
-        sp500_components: pd.DataFrame,
-        col: str = "Close",
-    ) -> pd.DataFrame:
 
-        if col not in price_data:
-            raise ValueError(f"Column {col} not found in price_data")
+def coverage_over_time(
+    price_data: dict[str, pd.DataFrame],
+    sp500_components: pd.DataFrame,
+    col: str = "Close",
+) -> pd.DataFrame:
 
-        if sp500_components.empty:
-            raise ValueError("sp500_components is empty")
+    if col not in price_data:
+        raise ValueError(f"Column {col} not found in price_data")
 
-        df = price_data[col].copy()
+    if sp500_components.empty:
+        raise ValueError("sp500_components is empty")
 
-        if not isinstance(df.index, pd.DatetimeIndex):
-            df.index = pd.to_datetime(df.index)
-        if df.index.tz is not None:
-            df.index = df.index.tz_localize(None)
-        df = df.sort_index()
+    df = price_data[col].copy()
 
-        components_df = sp500_components.copy()
-        components_df["date"] = pd.to_datetime(components_df["date"]).dt.normalize()
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+    if df.index.tz is not None:
+        df.index = df.index.tz_localize(None)
+    df = df.sort_index()
 
-        available_values = []
-        missing_values = []
-        not_downloaded_values = []
-        total_values = []
-        coverage_values = []
-        result_index = []
+    components_df = sp500_components.copy()
+    components_df["date"] = pd.to_datetime(components_df["date"]).dt.normalize()
 
-        for _, row in components_df.iterrows():
-            date = row["date"]
-            active_tickers = {ticker.strip() for ticker in str(row["tickers"]).split(",") if ticker.strip()}
-            if not active_tickers:
-                available_values.append(0)
-                missing_values.append(0)
-                not_downloaded_values.append(0)
-                total_values.append(0)
-                coverage_values.append(0.0)
-                result_index.append(date)
-                continue
+    available_values = []
+    missing_values = []
+    not_downloaded_values = []
+    total_values = []
+    coverage_values = []
+    result_index = []
 
-            nearest_pos = df.index.get_indexer([date], method="nearest")[0]
-            nearest_date = df.index[nearest_pos]
-            row_data = df.loc[nearest_date]
-
-            available = 0
-            missing = 0
-            not_downloaded = 0
-
-            for ticker in active_tickers:
-                if ticker not in df.columns:
-                    not_downloaded += 1
-                elif pd.notna(row_data.get(ticker)):
-                    available += 1
-                else:
-                    missing += 1
-
-            total = len(active_tickers)
-            coverage_pct = available / total * 100 if total else 0.0
-
-            available_values.append(available)
-            missing_values.append(missing)
-            not_downloaded_values.append(not_downloaded)
-            total_values.append(total)
-            coverage_values.append(coverage_pct)
+    for _, row in components_df.iterrows():
+        date = row["date"]
+        active_tickers = {ticker.strip() for ticker in str(row["tickers"]).split(",") if ticker.strip()}
+        if not active_tickers:
+            available_values.append(0)
+            missing_values.append(0)
+            not_downloaded_values.append(0)
+            total_values.append(0)
+            coverage_values.append(0.0)
             result_index.append(date)
+            continue
 
-        result_df = pd.DataFrame(
-            {
-                "available": available_values,
-                "missing": missing_values,
-                "not_downloaded": not_downloaded_values,
-                "total": total_values,
-                "coverage_pct": coverage_values,
-            },
-            index=pd.DatetimeIndex(result_index),
-        )
+        nearest_pos = df.index.get_indexer([date], method="nearest")[0]
+        nearest_date = df.index[nearest_pos]
+        row_data = df.loc[nearest_date]
 
-        result_df = result_df.sort_index()
+        available = 0
+        missing = 0
+        not_downloaded = 0
 
-        fig, ax = plt.subplots(figsize=(7, 5))
+        for ticker in active_tickers:
+            if ticker not in df.columns:
+                not_downloaded += 1
+            elif pd.notna(row_data.get(ticker)):
+                available += 1
+            else:
+                missing += 1
 
-        ax.plot(result_df.index, result_df["coverage_pct"], color=TOL_COLORS[2], label="Coverage %")
-        ax.set_ylabel("Coverage (%)")
-        ax.set_xlabel("Date")
-        ax.set_ylim(0, 100)
-        ax.set_title(f"Index Coverage Over Time — {col}")
-        ax.axhline(y=50, color="#CCCCCC", linewidth=0.8, linestyle="--", zorder=0)
-        ax.axhline(y=90, color="#CCCCCC", linewidth=0.8, linestyle="--", zorder=0)
-        ax.legend(loc="lower right")
-        ax.grid(True, axis='y', alpha=0.3)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+        total = len(active_tickers)
+        coverage_pct = available / total * 100 if total else 0.0
 
-        fig.tight_layout()
+        available_values.append(available)
+        missing_values.append(missing)
+        not_downloaded_values.append(not_downloaded)
+        total_values.append(total)
+        coverage_values.append(coverage_pct)
+        result_index.append(date)
 
-        plt.show()
+    result_df = pd.DataFrame(
+        {
+            "available": available_values,
+            "missing": missing_values,
+            "not_downloaded": not_downloaded_values,
+            "total": total_values,
+            "coverage_pct": coverage_values,
+        },
+        index=pd.DatetimeIndex(result_index),
+    )
 
-        return result_df
+    result_df = result_df.sort_index()
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    ax.plot(result_df.index, result_df["coverage_pct"], color=TOL_COLORS[2], label="Coverage %")
+    ax.set_ylabel("Coverage (%)")
+    ax.set_xlabel("Date")
+    ax.set_ylim(0, 100)
+    ax.set_title(f"Index Coverage Over Time — {col}")
+    ax.axhline(y=50, color="#CCCCCC", linewidth=0.8, linestyle="--", zorder=0)
+    ax.axhline(y=90, color="#CCCCCC", linewidth=0.8, linestyle="--", zorder=0)
+    ax.legend(loc="lower right")
+    ax.grid(True, axis='y', alpha=0.3)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    fig.tight_layout()
+
+    plt.show()
+
+    return result_df
 
 
 def main(
