@@ -15,6 +15,7 @@ import pandas_market_calendars as mcal
 import papermill as pm
 import yfinance as yf
 import eodhd
+from dotenv import load_dotenv
 
 from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
@@ -36,6 +37,25 @@ _EODHD_COLUMN_MAP = [
     ("volume", "Volume"),
     ("adjusted_close", "Adj_Close"),
 ]
+
+
+def tickers_from_sp500_components(sp500_components: pd.DataFrame) -> list[str]:
+    tickers_col = "tickers"
+    if tickers_col not in sp500_components.columns:
+        raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
+
+    exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
+    raw_tickers = (
+        exploded.explode()
+        .astype(str)
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+        .drop_duplicates()
+    )
+    clean = [str(ticker).strip() for ticker in sorted(raw_tickers.tolist()) if str(ticker).strip()]
+    print("Number of unique tickers extracted:", len(clean))
+    return clean
 
 
 def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -> bool:
@@ -360,9 +380,9 @@ class YahooFinance(StockDataSource):
         return data
 
     @classmethod
-    def download_batch(
+    def download(
         cls,
-        sp500_components: pd.DataFrame,
+        tickers: list[str],
         batch_size: int = 200,
         sleep_seconds: float = 2.0,
         save_csv: bool = False,
@@ -372,25 +392,6 @@ class YahooFinance(StockDataSource):
         output_columns = ["Close", "Open", "High", "Low", "Volume", "Adj_Close"]
         output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
         ticker_status: dict[str, str] = {}
-
-        def _parse_sp500_tickers() -> list[str]:
-
-            tickers_col = "tickers"
-            if tickers_col not in sp500_components.columns:
-                raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
-
-            exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
-            raw_tickers = (
-                exploded.explode()
-                .astype(str)
-                .str.strip()
-                .replace("", pd.NA)
-                .dropna()
-                .drop_duplicates()
-            )
-            clean = [str(ticker).strip() for ticker in sorted(raw_tickers.tolist()) if str(ticker).strip()]
-            print("Number of unique tickers extracted:", len(clean))
-            return clean
 
         def normalize_download_frame(batch_df: pd.DataFrame, batch_tickers: list[str]) -> pd.DataFrame:
 
@@ -456,8 +457,7 @@ class YahooFinance(StockDataSource):
         ) -> dict[str, pd.DataFrame]:
             return _combine_columnar_frames(existing_frames, downloaded_parts_local, output_columns)
 
-        clean_tickers = _parse_sp500_tickers()
-        if not clean_tickers:
+        if not tickers:
             return {col: pd.DataFrame() for col in output_columns}
 
         existing_data: dict[str, pd.DataFrame] = {}
@@ -484,7 +484,7 @@ class YahooFinance(StockDataSource):
                     return existing_data
 
                 print("Checking for missing ticker data...")
-                tickers_with_incomplete_data = _find_incomplete_tickers(reference_frame, clean_tickers)
+                tickers_with_incomplete_data = _find_incomplete_tickers(reference_frame, tickers)
 
                 if not tickers_with_incomplete_data:
                     print("No tickers found with significant missing data (>50% NaN)")
@@ -507,9 +507,9 @@ class YahooFinance(StockDataSource):
             yf_start = last_date
 
         downloaded_parts = (
-            download_parts_for_tickers(clean_tickers, start=yf_start)
+            download_parts_for_tickers(tickers, start=yf_start)
             if yf_start is not None
-            else download_parts_for_tickers(clean_tickers, period="max")
+            else download_parts_for_tickers(tickers, period="max")
         )
         result = combine_final_frames(existing_data, downloaded_parts)
 
@@ -528,19 +528,20 @@ class EODHD(StockDataSource):
     submodule_name: str = "eodhd"
 
     @classmethod
-    def download_tickers(
+    def download(
         cls,
         tickers: List[str],
         api_key: str = None,
         client: eodhd.APIClient = None,
-        batch_size: int = 200,
-        sleep_seconds: float = 2.0,
         save_csv: bool = False,
         redownload_missing_tickers: bool = False,
     ) -> dict[str, pd.DataFrame]:
 
         if client is None:
             if api_key is None:
+                api_key = os.getenv("EODHD_API_KEY")
+            if api_key is None:
+                load_dotenv(PROJ_ROOT / ".env", override=False)
                 api_key = os.getenv("EODHD_API_KEY")
             if api_key is None:
                 raise ValueError(
@@ -555,8 +556,9 @@ class EODHD(StockDataSource):
         def _deduplicate_tickers() -> list[str]:
             clean = [str(ticker).strip() for ticker in tickers if str(ticker).strip()]
             unique = sorted(dict.fromkeys(clean))
-            print("Number of unique tickers extracted:", len(unique))
-            return unique
+            eodhd_tickers = [f"{ticker}.US" for ticker in unique]
+            print("Number of unique tickers extracted:", len(eodhd_tickers))
+            return eodhd_tickers
 
         def normalize_eodhd_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
@@ -598,9 +600,10 @@ class EODHD(StockDataSource):
             renamed = ticker_frame.copy()
             renamed.columns = [str(col).lower() for col in renamed.columns]
 
+            column_name = clean_ticker.removesuffix(".US")
             for source_col, target_col in _EODHD_COLUMN_MAP:
                 if source_col in renamed.columns:
-                    extracted = renamed[[source_col]].rename(columns={source_col: clean_ticker})
+                    extracted = renamed[[source_col]].rename(columns={source_col: column_name})
                     extracted = extracted.apply(pd.to_numeric, errors="coerce")
                     downloaded_parts[target_col].append(extracted)
 
@@ -612,31 +615,50 @@ class EODHD(StockDataSource):
 
             downloaded_parts_local: dict[str, list[pd.DataFrame]] = {col: [] for col in output_columns}
 
-            for batch_index, batch_start in enumerate(range(0, len(tickers_to_download), batch_size)):
-                batch = tickers_to_download[batch_start:batch_start + batch_size]
-                print(f"Downloading batch {batch_index + 1} ({len(batch)} tickers)...")
+            print(f"Downloading {len(tickers_to_download)} tickers...")
 
-                for clean_ticker in batch:
-                    try:
-                        frame = download_for_ticker(clean_ticker, from_date=from_date)
-                    except Exception as exc:
-                        print(f"Failed to download data for {clean_ticker}: {exc}")
-                        ticker_status[clean_ticker] = "failed"
-                        continue
+            for clean_ticker in tickers_to_download:
+                try:
+                    frame = download_for_ticker(clean_ticker, from_date=from_date)
+                except Exception as exc:
+                    print(f"Failed to download data for {clean_ticker}: {exc}")
+                    ticker_status[clean_ticker] = "failed"
+                    continue
 
-                    normalized = normalize_eodhd_frame(frame)
-                    if normalized.empty:
-                        print(f"No valid data returned for {clean_ticker}")
-                        ticker_status[clean_ticker] = "no_valid_data"
-                        continue
+                normalized = normalize_eodhd_frame(frame)
+                if normalized.empty:
+                    print(f"No valid data returned for {clean_ticker}")
+                    ticker_status[clean_ticker] = "no_valid_data"
+                    continue
 
-                    extract_downloaded_parts(normalized, clean_ticker, downloaded_parts_local)
-                    ticker_status[clean_ticker] = "downloaded"
-
-                if batch_start + batch_size < len(tickers_to_download):
-                    time.sleep(sleep_seconds + random.uniform(0, 3))
+                extract_downloaded_parts(normalized, clean_ticker, downloaded_parts_local)
+                ticker_status[clean_ticker] = "downloaded"
 
             return downloaded_parts_local
+
+        def _base_ticker(symbol: str) -> str:
+            return str(symbol).strip().removesuffix(".US")
+
+        def find_incomplete_eodhd_tickers(
+            reference_df: pd.DataFrame,
+            tickers_to_check: list[str],
+        ) -> list[tuple[str, float]]:
+
+            incomplete: list[tuple[str, float]] = []
+            reference_columns = {_base_ticker(col): col for col in reference_df.columns}
+
+            for clean_ticker in tickers_to_check:
+                base_symbol = _base_ticker(clean_ticker)
+                if base_symbol in reference_columns:
+                    existing_col = reference_columns[base_symbol]
+                    ticker_data = reference_df[existing_col]
+                    nan_ratio = ticker_data.isna().sum() / len(ticker_data)
+                    if nan_ratio > 0.5:
+                        incomplete.append((clean_ticker, nan_ratio))
+                else:
+                    incomplete.append((clean_ticker, 1.0))
+
+            return incomplete
 
         clean_tickers = _deduplicate_tickers()
         if not clean_tickers:
@@ -653,6 +675,7 @@ class EODHD(StockDataSource):
 
             reference_col = "Close" if "Close" in existing_data else next(iter(existing_data))
             reference_frame = existing_data[reference_col]
+            reference_tickers = {_base_ticker(col) for col in reference_frame.columns}
 
             if not reference_frame.empty:
 
@@ -665,7 +688,7 @@ class EODHD(StockDataSource):
                     if not redownload_missing_tickers:
                         print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
                         for clean_ticker in clean_tickers:
-                            if clean_ticker in reference_frame.columns:
+                            if _base_ticker(clean_ticker) in reference_tickers:
                                 ticker_status[clean_ticker] = "skipped_already_up_to_date"
                             else:
                                 ticker_status[clean_ticker] = "skipped_not_in_existing_dataset"
@@ -673,7 +696,7 @@ class EODHD(StockDataSource):
                         return existing_data
 
                     print("Checking for missing ticker data...")
-                    tickers_with_incomplete_data = _find_incomplete_tickers(reference_frame, clean_tickers)
+                    tickers_with_incomplete_data = find_incomplete_eodhd_tickers(reference_frame, clean_tickers)
 
                     if not tickers_with_incomplete_data:
                         print("No tickers found with significant missing data (>50% NaN)")
@@ -688,12 +711,7 @@ class EODHD(StockDataSource):
 
                     all_missing_tickers = [ticker_name for ticker_name, _ in tickers_with_incomplete_data]
                     downloaded_parts_missing = download_parts_for_tickers(all_missing_tickers, from_date=None)
-                    _merge_missing_ticker_data(
-                        existing_data,
-                        downloaded_parts_missing,
-                        all_missing_tickers,
-                        output_columns,
-                    )
+                    existing_data = _combine_columnar_frames(existing_data, downloaded_parts_missing, output_columns)
 
                     for ticker_name in all_missing_tickers:
                         ticker_status.setdefault(ticker_name, "redownload_missing_attempted")
