@@ -416,7 +416,7 @@ class YahooFinance:
 def coverage_over_time(
     price_data: dict[str, pd.DataFrame],
     sp500_components: pd.DataFrame,
-    col: str = "Close",
+    col: str = "Adj_Close",
 ) -> pd.DataFrame:
 
     if col not in price_data:

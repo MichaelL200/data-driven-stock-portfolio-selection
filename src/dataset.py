@@ -27,6 +27,8 @@ _YF_COLUMN_MAP = [
     ("Low", "Low"),
     ("Volume", "Volume"),
     ("Adj Close", "Adj_Close"),
+    ("Dividends", "Dividends"),
+    ("Stock Splits", "Stock_Splits"),
 ]
 
 _EODHD_COLUMN_MAP = [
@@ -389,9 +391,14 @@ class YahooFinance(StockDataSource):
         redownload_missing_tickers: bool = False,
     ) -> dict[str, pd.DataFrame]:
 
-        output_columns = ["Close", "Open", "High", "Low", "Volume", "Adj_Close"]
+        output_columns = [target_col for _, target_col in _YF_COLUMN_MAP]
         output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
         ticker_status: dict[str, str] = {}
+
+        def save_output_frames(frames_to_save: dict[str, pd.DataFrame]) -> None:
+            for col, data in frames_to_save.items():
+                data.to_csv(output_paths[col])
+                print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
 
         def normalize_download_frame(batch_df: pd.DataFrame, batch_tickers: list[str]) -> pd.DataFrame:
 
@@ -421,6 +428,7 @@ class YahooFinance(StockDataSource):
                 batch = tickers_to_download[batch_start:batch_start + batch_size]
                 download_kwargs = {
                     "auto_adjust": False,
+                    "actions": True,
                     "timeout": 30,
                     "progress": False,
                 }
@@ -460,8 +468,9 @@ class YahooFinance(StockDataSource):
         if not tickers:
             return {col: pd.DataFrame() for col in output_columns}
 
-        existing_data: dict[str, pd.DataFrame] = {}
+        existing_data: dict[str, pd.DataFrame] = {col: pd.DataFrame() for col in output_columns}
         existing_paths = {col: path for col, path in output_paths.items() if path.exists()}
+        missing_output_columns = [col for col in output_columns if col not in existing_paths]
 
         yf_start = None
         if existing_paths:
@@ -478,7 +487,17 @@ class YahooFinance(StockDataSource):
 
                 print(f"No new trading days since {last_date.date()}.")
 
+                if missing_output_columns:
+                    print(
+                        "Detected missing Yahoo Finance output files: "
+                        f"{', '.join(missing_output_columns)}. Backfilling from full history..."
+                    )
+                    backfill_parts = download_parts_for_tickers(tickers, period="max")
+                    existing_data = _combine_columnar_frames(existing_data, backfill_parts, output_columns)
+
                 if not redownload_missing_tickers:
+                    if save_csv and missing_output_columns:
+                        save_output_frames(existing_data)
                     print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
                     _print_status_report(ticker_status, "YahooFinance per-ticker status:")
                     return existing_data
@@ -514,9 +533,7 @@ class YahooFinance(StockDataSource):
         result = combine_final_frames(existing_data, downloaded_parts)
 
         if save_csv:
-            for col, data in result.items():
-                data.to_csv(output_paths[col])
-                print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
+            save_output_frames(result)
 
         _print_status_report(ticker_status, "YahooFinance per-ticker status:")
 
