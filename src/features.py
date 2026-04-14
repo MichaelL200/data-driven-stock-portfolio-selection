@@ -47,10 +47,28 @@ def construct_hybrid(
         common_cols = short_df.columns.intersection(long_df.columns)
         long_df = long_df[common_cols]
         short_df = short_df[common_cols]
-        price_col = "Adj Close"
+        price_col = "Adj_Close"
+
+        if price_col not in common_cols:
+            raise KeyError(f"Column '{price_col}' not found in both dataframes")
+
+        short_start = short_df[price_col].first_valid_index()
+        if short_start is None:
+            raise ValueError("short_df does not contain any valid ETF prices")
+
+        long_start = long_df[price_col].first_valid_index()
+        if long_start is None:
+            raise ValueError("long_df does not contain any valid prices")
 
         # Compute annual tracking difference from overlap
         overlap_dates = long_df.index.intersection(short_df.index)
+        overlap_dates = overlap_dates[
+            long_df.loc[overlap_dates, price_col].notna()
+            & short_df.loc[overlap_dates, price_col].notna()
+        ]
+        if overlap_dates.empty:
+            raise ValueError("No overlapping valid prices found between long_df and short_df")
+
         long_overlap = long_df.loc[overlap_dates, price_col]
         short_overlap = short_df.loc[overlap_dates, price_col]
 
@@ -61,25 +79,31 @@ def construct_hybrid(
         daily_drag = (1 + TD_annual) ** (1 / 252)
 
         # Adjust pre-ETF segment backward
-        pre_mask = long_df.index < short_df.index[0]
+        pre_mask = long_df.index < short_start
         pre_df = long_df.loc[pre_mask].copy()
-        n_days = len(pre_df)
-        drag_factors = daily_drag ** np.arange(1, n_days + 1)
+        if pre_df.empty:
+            hybrid_df = short_df.loc[short_df[price_col].notna()].copy()
+        else:
+            n_days = len(pre_df)
+            drag_factors = daily_drag ** np.arange(1, n_days + 1)
 
-        pre_df[price_col] = pre_df[price_col] / drag_factors
+            pre_df[price_col] = pre_df[price_col] / drag_factors
 
-        # Adjust other columns proportionally
-        ratio = pre_df[price_col] / long_df.loc[pre_mask, price_col]
-        for col in common_cols:
-            if col != price_col:
-                pre_df[col] = long_df.loc[pre_mask, col] * ratio
+            # Adjust other columns proportionally
+            ratio = pre_df[price_col] / long_df.loc[pre_mask, price_col]
+            for col in common_cols:
+                if col != price_col:
+                    pre_df[col] = long_df.loc[pre_mask, col] * ratio
 
-        # Scale to ETF start for continuity
-        scale_factor = short_df[price_col].iloc[0] / pre_df[price_col].iloc[-1]
-        pre_df[common_cols] = pre_df[common_cols] * scale_factor
+            # Scale to ETF start for continuity using the first valid ETF point
+            scale_factor = short_df.loc[short_start, price_col] / pre_df[price_col].iloc[-1]
+            pre_df[common_cols] = pre_df[common_cols] * scale_factor
+
+            # Remove any leading rows that still lack valid price data
+            pre_df = pre_df.loc[pre_df[price_col].notna()]
 
         # Combine with ETF data
-        post_df = short_df.loc[short_df.index >= short_df.index[0]]
+        post_df = short_df.loc[short_df.index >= short_start]
         hybrid_df = pd.concat([pre_df, post_df]).sort_index()
         hybrid_df = hybrid_df[~hybrid_df.index.duplicated(keep='last')]
 

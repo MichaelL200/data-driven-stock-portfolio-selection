@@ -257,7 +257,7 @@ class YahooFinance:
     @classmethod
     def show_last_split(cls, df: pd.DataFrame) -> pd.DataFrame:
 
-        splits = df[df["Stock Splits"] != 0]
+        splits = df[df["Stock_Splits"] != 0]
         if splits.empty:
             print("No stock splits found in the data for this ticker.")
             return pd.DataFrame()
@@ -268,14 +268,14 @@ class YahooFinance:
         start = max(last_split_pos - 1, 0)
         end = min(last_split_pos + 2, len(df))
 
-        return df.iloc[start:end][["Open", "Adj Close", "Dividends", "Stock Splits"]]
+        return df.iloc[start:end][["Open", "Adj_Close", "Dividends", "Stock_Splits"]]
 
     @classmethod
     def show_chart(
         cls,
         df: pd.DataFrame,
         label: str = "Ticker",
-        col: str = "Adj Close",
+        col: str = "Adj_Close",
         start_date: pd.Timestamp | None = None,
         end_date: pd.Timestamp | None = None,
         hide_col: bool = False,
@@ -333,7 +333,7 @@ class YahooFinance:
     def compare_tickers(
         cls,
         dfs: dict[str, pd.DataFrame],
-        col: str = "Adj Close",
+        col: str = "Adj_Close",
         start_date: pd.Timestamp | None = None,
         end_date: pd.Timestamp | None = None,
         hide_col: bool = False,

@@ -31,6 +31,8 @@ _YF_COLUMN_MAP = [
     ("Stock Splits", "Stock_Splits"),
 ]
 
+_YF_OUTPUT_COLUMNS = [target for _, target in _YF_COLUMN_MAP]
+
 _EODHD_COLUMN_MAP = [
     ("close", "Close"),
     ("open", "Open"),
@@ -323,63 +325,157 @@ class YahooFinance(StockDataSource):
                 downloaded_parts[target_col].append(extracted)
 
     @classmethod
-    def get_ticker_data_incremental(
+    def _load_existing(cls) -> dict[str, pd.DataFrame]:
+        existing: dict[str, pd.DataFrame] = {}
+        for col in _YF_OUTPUT_COLUMNS:
+            path = cls.dst_dir / f"{col}.csv"
+            if path.exists():
+                existing[col] = _load_columnar_frame(path)
+        return existing
+
+    @classmethod
+    def _fetch_batches(
+        cls,
+        tickers: list[str],
+        *,
+        batch_size: int,
+        sleep_seconds: float,
+        period: str = None,
+        start: pd.Timestamp = None,
+    ) -> dict[str, list[pd.DataFrame]]:
+
+        downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in _YF_OUTPUT_COLUMNS}
+
+        for batch_index, batch_start in enumerate(range(0, len(tickers), batch_size)):
+            batch = tickers[batch_start:batch_start + batch_size]
+            download_kwargs = {
+                "auto_adjust": False,
+                "actions": True,
+                "timeout": 30,
+                "progress": False,
+            }
+            if period is not None:
+                download_kwargs["period"] = period
+            if start is not None:
+                download_kwargs["start"] = start
+
+            print(f"Downloading batch {batch_index + 1} ({len(batch)} tickers)...")
+            batch_df = yf.download(batch, **download_kwargs)
+
+            if batch_df.empty:
+                print(f"Warning: empty download for batch {batch_index + 1}")
+            else:
+                normalized_batch = batch_df.copy()
+                if not isinstance(normalized_batch.columns, pd.MultiIndex):
+                    ticker = str(batch[0])
+                    normalized_batch.columns = pd.MultiIndex.from_tuples(
+                        [(col, ticker) for col in normalized_batch.columns],
+                        names=["Field", "Ticker"],
+                    )
+                else:
+                    normalized_batch.columns = normalized_batch.columns.set_names(["Field", "Ticker"])
+
+                normalized_batch = cls._normalize_index(normalized_batch)
+                cls._extract_batch_columns(normalized_batch, downloaded_parts)
+
+            if batch_start + batch_size < len(tickers):
+                time.sleep(sleep_seconds + random.uniform(0, 3))
+
+        return downloaded_parts
+
+    @staticmethod
+    def _merge(
+        existing: dict[str, pd.DataFrame],
+        downloaded_parts: dict[str, list[pd.DataFrame]],
+    ) -> dict[str, pd.DataFrame]:
+
+        result: dict[str, pd.DataFrame] = {}
+
+        for col in _YF_OUTPUT_COLUMNS:
+            new_data = (
+                pd.concat(downloaded_parts[col], axis=1)
+                .loc[:, lambda df: ~df.columns.duplicated(keep="last")]
+                if downloaded_parts[col]
+                else pd.DataFrame()
+            )
+            if not new_data.empty:
+                new_data = _normalize_columnar_index(new_data)
+
+            old_data = existing.get(col, pd.DataFrame())
+
+            if old_data.empty and new_data.empty:
+                result[col] = pd.DataFrame()
+                continue
+
+            merged = pd.concat([old_data, new_data], axis=0, join="outer")
+            merged = (
+                merged[~merged.index.duplicated(keep="last")]
+                .sort_index()
+                .pipe(_normalize_columnar_index)
+            )
+            result[col] = merged
+
+        return result
+
+    @classmethod
+    def _save(cls, frames: dict[str, pd.DataFrame]) -> None:
+        for col, data in frames.items():
+            if data.empty:
+                continue
+            path = cls.dst_dir / f"{col}.csv"
+            data.to_csv(path)
+            print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
+
+    @classmethod
+    def load_all(cls) -> dict[str, pd.DataFrame]:
+        data = cls._load_existing()
+        if not data:
+            print(f"No YahooFinance CSVs found in {cls.dst_dir}")
+        return data
+
+    @classmethod
+    def load_ticker(cls, ticker: str) -> pd.DataFrame:
+        ticker = str(ticker).strip()
+        frames = cls._load_existing()
+        if not frames:
+            raise FileNotFoundError(f"No YahooFinance data found in {cls.dst_dir}")
+
+        series: dict[str, pd.Series] = {}
+        for field, frame in frames.items():
+            if ticker in frame.columns:
+                series[field] = frame[ticker]
+
+        if not series:
+            raise KeyError(f"Ticker '{ticker}' not found in YahooFinance data.")
+
+        result = pd.DataFrame(series)
+        result.index.name = "Date"
+        return result
+
+    @classmethod
+    def download_ticker(
         cls,
         ticker: str,
-        save_csv: bool = False
+        save_csv: bool = False,
     ) -> pd.DataFrame:
 
-        file_path: Path = cls.dst_dir / f"{ticker}.csv"
+        columnar: dict[str, pd.DataFrame] = cls.download([ticker], save_csv=save_csv, redownload_missing_tickers=True)
 
-        def load_existing_data() -> pd.DataFrame:
-            print(f"Loading existing data for {ticker} from {file_path.name}")
-            loaded = pd.read_csv(file_path, index_col=0, parse_dates=True)
-            loaded.index = pd.to_datetime(loaded.index, utc=True)
-            loaded.index.name = "Date"
-            return loaded
+        # columnar maps field-name → DataFrame(index=Date, columns=tickers)
+        # Reassemble into a single DataFrame(index=Date, columns=field-names)
+        series: dict[str, pd.Series] = {}
+        for field, frame in columnar.items():
+            if frame.empty or ticker not in frame.columns:
+                continue
+            series[field] = frame[ticker]
 
-        def update_existing_data(existing: pd.DataFrame) -> pd.DataFrame:
+        if not series:
+            print(f"No data returned for ticker: {ticker}")
+            return pd.DataFrame()
 
-            last_date = existing.index.max()
-            today = pd.Timestamp.now(tz="UTC")
-
-            if not _has_new_trading_days(last_date, today):
-                print(f"No new trading days for {ticker} since {last_date.date()}")
-                return existing
-
-            print(f"Fetching new data for {ticker} since {last_date.date()}")
-            new_data = yf.Ticker(ticker).history(start=last_date, auto_adjust=False)
-
-            if new_data.empty:
-                print(f"No new data for {ticker}")
-                return existing
-
-            new_data.index.name = "Date"
-
-            updated = pd.concat([existing, new_data])
-            updated = updated[~updated.index.duplicated(keep="last")]
-            updated = updated.sort_index()
-            updated.index.name = "Date"
-            print(f"Updated {ticker} with new data")
-            return updated
-
-        def fetch_full_history() -> pd.DataFrame:
-            print(f"Fetching full historical data for {ticker}")
-            fetched = yf.Ticker(ticker).history(period="max", auto_adjust=False)
-            fetched.index.name = "Date"
-            print(f"Fetched {len(fetched)} rows for {ticker}")
-            return fetched
-
-        if file_path.exists():
-            data = update_existing_data(load_existing_data())
-        else:
-            data = fetch_full_history()
-
-        if save_csv:
-            data.to_csv(file_path)
-            print(f"Saved data for {ticker} to {file_path.name}")
-
-        return data
+        result = pd.DataFrame(series)
+        result.index.name = "Date"
+        return result
 
     @classmethod
     def download(
@@ -389,153 +485,81 @@ class YahooFinance(StockDataSource):
         sleep_seconds: float = 2.0,
         save_csv: bool = False,
         redownload_missing_tickers: bool = False,
+        download_missing_tickers: bool = None,
     ) -> dict[str, pd.DataFrame]:
 
-        output_columns = [target_col for _, target_col in _YF_COLUMN_MAP]
-        output_paths = {col: cls.dst_dir / f"{col}.csv" for col in output_columns}
-        ticker_status: dict[str, str] = {}
+        if download_missing_tickers is None:
+            download_missing_tickers = redownload_missing_tickers
 
-        def save_output_frames(frames_to_save: dict[str, pd.DataFrame]) -> None:
-            for col, data in frames_to_save.items():
-                data.to_csv(output_paths[col])
-                print(f"Saved {col}.csv ({len(data)} rows x {len(data.columns)} columns)")
+        cls.dst_dir.mkdir(parents=True, exist_ok=True)
 
-        def normalize_download_frame(batch_df: pd.DataFrame, batch_tickers: list[str]) -> pd.DataFrame:
-
-            if not isinstance(batch_df.columns, pd.MultiIndex):
-                ticker = str(batch_tickers[0])
-                batch_df = batch_df.copy()
-                batch_df.columns = pd.MultiIndex.from_tuples(
-                    [(col, ticker) for col in batch_df.columns],
-                    names=["Field", "Ticker"],
-                )
-                return batch_df
-
-            result = batch_df.copy()
-            result.columns = result.columns.set_names(["Field", "Ticker"])
-            return result
-
-        def download_parts_for_tickers(
-            tickers_to_download: list[str],
-            *,
-            period: str = None,
-            start: pd.Timestamp = None,
-        ) -> dict[str, list[pd.DataFrame]]:
-
-            downloaded_parts_local: dict[str, list[pd.DataFrame]] = {col: [] for col in output_columns}
-
-            for batch_index, batch_start in enumerate(range(0, len(tickers_to_download), batch_size)):
-                batch = tickers_to_download[batch_start:batch_start + batch_size]
-                download_kwargs = {
-                    "auto_adjust": False,
-                    "actions": True,
-                    "timeout": 30,
-                    "progress": False,
-                }
-                if period is not None:
-                    download_kwargs["period"] = period
-                if start is not None:
-                    download_kwargs["start"] = start
-
-                print(f"Downloading batch {batch_index + 1} ({len(batch)} tickers)...")
-                batch_df = yf.download(batch, **download_kwargs)
-
-                if batch_df.empty:
-                    print(f"Warning: empty download for batch {batch_index + 1}")
-                    for ticker_name in batch:
-                        ticker_status[ticker_name] = "missing_from_batch"
-                else:
-                    normalized_batch = normalize_download_frame(batch_df, batch)
-                    cls._extract_batch_columns(normalized_batch, downloaded_parts_local)
-                    available_tickers = set(normalized_batch.columns.get_level_values("Ticker"))
-                    for ticker_name in batch:
-                        if ticker_name in available_tickers:
-                            ticker_status[ticker_name] = "downloaded"
-                        else:
-                            ticker_status[ticker_name] = "missing_from_batch"
-
-                if batch_start + batch_size < len(tickers_to_download):
-                    time.sleep(sleep_seconds + random.uniform(0, 3))
-
-            return downloaded_parts_local
-
-        def combine_final_frames(
-            existing_frames: dict[str, pd.DataFrame],
-            downloaded_parts_local: dict[str, list[pd.DataFrame]],
-        ) -> dict[str, pd.DataFrame]:
-            return _combine_columnar_frames(existing_frames, downloaded_parts_local, output_columns)
-
+        tickers = [str(t).strip() for t in tickers if str(t).strip()]
         if not tickers:
-            return {col: pd.DataFrame() for col in output_columns}
+            return {col: pd.DataFrame() for col in _YF_OUTPUT_COLUMNS}
 
-        existing_data: dict[str, pd.DataFrame] = {col: pd.DataFrame() for col in output_columns}
-        existing_paths = {col: path for col, path in output_paths.items() if path.exists()}
-        missing_output_columns = [col for col in output_columns if col not in existing_paths]
+        existing = cls._load_existing()
+        reference = existing.get("Close", pd.DataFrame())
 
-        yf_start = None
-        if existing_paths:
+        tickers_for_update: list[str] = []
+        tickers_for_full: list[str] = []
+        existing_tickers: list[str] = []
 
-            for col, path in existing_paths.items():
-                existing_data[col] = _load_columnar_frame(path)
-
-            reference_col = "Close" if "Close" in existing_data else next(iter(existing_data))
-            reference_frame = existing_data[reference_col]
-            last_date = reference_frame.index.max()
+        if not reference.empty:
+            last_date = reference.index.max()
             today = pd.Timestamp.now(tz="UTC").normalize()
+            existing_tickers = [str(ticker).strip() for ticker in reference.columns.tolist()]
+            requested_tickers = set(tickers)
+            existing_set = set(existing_tickers)
+            missing_requested_tickers = [ticker for ticker in tickers if ticker not in existing_set]
 
-            if not _has_new_trading_days(last_date, today):
-
+            if _has_new_trading_days(last_date, today):
+                tickers_for_update = existing_tickers
+                print(
+                    f"New trading days found since {last_date.date()}. "
+                    f"Updating {len(existing_tickers)} existing tickers."
+                )
+            else:
                 print(f"No new trading days since {last_date.date()}.")
 
-                if missing_output_columns:
-                    print(
-                        "Detected missing Yahoo Finance output files: "
-                        f"{', '.join(missing_output_columns)}. Backfilling from full history..."
-                    )
-                    backfill_parts = download_parts_for_tickers(tickers, period="max")
-                    existing_data = _combine_columnar_frames(existing_data, backfill_parts, output_columns)
+            if missing_requested_tickers:
+                tickers_for_full = missing_requested_tickers
+                print(f"Downloading full history for {len(tickers_for_full)} missing tickers.")
 
-                if not redownload_missing_tickers:
-                    if save_csv and missing_output_columns:
-                        save_output_frames(existing_data)
-                    print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
-                    _print_status_report(ticker_status, "YahooFinance per-ticker status:")
-                    return existing_data
+            if download_missing_tickers and requested_tickers.issubset(existing_set):
+                print("All requested tickers are already present in the saved CSVs.")
+        else:
+            tickers_for_full = tickers
+            print(f"No existing data found. Downloading full history for {len(tickers)} tickers.")
 
-                print("Checking for missing ticker data...")
-                tickers_with_incomplete_data = _find_incomplete_tickers(reference_frame, tickers)
+        if not tickers_for_update and not tickers_for_full:
+            return existing
 
-                if not tickers_with_incomplete_data:
-                    print("No tickers found with significant missing data (>50% NaN)")
-                    _print_status_report(ticker_status, "YahooFinance per-ticker status:")
-                    return existing_data
+        downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in _YF_OUTPUT_COLUMNS}
 
-                print(
-                    f"Found {len(tickers_with_incomplete_data)} tickers with >50% missing data. "
-                    f"Attempting to re-download..."
-                )
-                _print_incomplete_tickers(tickers_with_incomplete_data)
+        if tickers_for_update:
+            parts = cls._fetch_batches(
+                tickers_for_update,
+                start=last_date,
+                batch_size=batch_size,
+                sleep_seconds=sleep_seconds,
+            )
+            for col in _YF_OUTPUT_COLUMNS:
+                downloaded_parts[col].extend(parts[col])
 
-                all_missing_tickers = [ticker_name for ticker_name, _ in tickers_with_incomplete_data]
-                downloaded_parts_missing = download_parts_for_tickers(all_missing_tickers, period="max")
-                _merge_missing_ticker_data(existing_data, downloaded_parts_missing, all_missing_tickers, output_columns)
-                print(f"Successfully re-downloaded and merged data for {len(all_missing_tickers)} tickers")
-                _print_status_report(ticker_status, "YahooFinance per-ticker status:")
-                return existing_data
+        if tickers_for_full:
+            parts = cls._fetch_batches(
+                tickers_for_full,
+                period="max",
+                batch_size=batch_size,
+                sleep_seconds=sleep_seconds,
+            )
+            for col in _YF_OUTPUT_COLUMNS:
+                downloaded_parts[col].extend(parts[col])
 
-            yf_start = last_date
-
-        downloaded_parts = (
-            download_parts_for_tickers(tickers, start=yf_start)
-            if yf_start is not None
-            else download_parts_for_tickers(tickers, period="max")
-        )
-        result = combine_final_frames(existing_data, downloaded_parts)
+        result = cls._merge(existing, downloaded_parts)
 
         if save_csv:
-            save_output_frames(result)
-
-        _print_status_report(ticker_status, "YahooFinance per-ticker status:")
+            cls._save(result)
 
         return result
 
