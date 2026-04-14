@@ -669,9 +669,20 @@ class EODHD(StockDataSource):
                 if base_symbol in reference_columns:
                     existing_col = reference_columns[base_symbol]
                     ticker_data = reference_df[existing_col]
-                    nan_ratio = ticker_data.isna().sum() / len(ticker_data)
-                    if nan_ratio > 0.5:
-                        incomplete.append((clean_ticker, nan_ratio))
+
+                    # Only consider data from the first non-NaN value to the end
+                    # to avoid penalizing tickers that weren't listed at the start of the dataset
+                    first_valid_idx = ticker_data.first_valid_index()
+                    if first_valid_idx is not None:
+                        active_data = ticker_data.loc[first_valid_idx:]
+                        if not active_data.empty:
+                            nan_ratio = active_data.isna().sum() / len(active_data)
+                            if nan_ratio > 0.5:
+                                incomplete.append((clean_ticker, nan_ratio))
+                        else:
+                            incomplete.append((clean_ticker, 1.0))
+                    else:
+                        incomplete.append((clean_ticker, 1.0))
                 else:
                     incomplete.append((clean_ticker, 1.0))
 
@@ -694,54 +705,60 @@ class EODHD(StockDataSource):
             reference_frame = existing_data[reference_col]
             reference_tickers = {_base_ticker(col) for col in reference_frame.columns}
 
-            if not reference_frame.empty:
+            missing_tickers = [t for t in clean_tickers if _base_ticker(t) not in reference_tickers]
+            has_new_days = False
 
+            if not reference_frame.empty:
                 last_date = reference_frame.index.max()
                 today = pd.Timestamp.now(tz="UTC").normalize()
+                has_new_days = _has_new_trading_days(last_date, today)
+                if has_new_days:
+                    eodhd_start = last_date.strftime("%Y-%m-%d")
 
-                if not _has_new_trading_days(last_date, today):
-
-                    print(f"No new trading days since {last_date.date()}.")
-                    if not redownload_missing_tickers:
-                        print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
-                        for clean_ticker in clean_tickers:
-                            if _base_ticker(clean_ticker) in reference_tickers:
-                                ticker_status[clean_ticker] = "skipped_already_up_to_date"
-                            else:
-                                ticker_status[clean_ticker] = "skipped_not_in_existing_dataset"
-                        _print_status_report(ticker_status, "EODHD per-ticker status:")
-                        return existing_data
-
-                    print("Checking for missing ticker data...")
-                    tickers_with_incomplete_data = find_incomplete_eodhd_tickers(reference_frame, clean_tickers)
-
-                    if not tickers_with_incomplete_data:
-                        print("No tickers found with significant missing data (>50% NaN)")
-                        _print_status_report(ticker_status, "EODHD per-ticker status:")
-                        return existing_data
-
-                    print(
-                        f"Found {len(tickers_with_incomplete_data)} tickers with >50% missing data. "
-                        f"Attempting to re-download..."
-                    )
-                    _print_incomplete_tickers(tickers_with_incomplete_data)
-
-                    all_missing_tickers = [ticker_name for ticker_name, _ in tickers_with_incomplete_data]
-                    downloaded_parts_missing = download_parts_for_tickers(all_missing_tickers, from_date=None)
-                    existing_data = _combine_columnar_frames(existing_data, downloaded_parts_missing, output_columns)
-
-                    for ticker_name in all_missing_tickers:
-                        ticker_status.setdefault(ticker_name, "redownload_missing_attempted")
-
-                    print(
-                        f"Successfully re-downloaded and merged data for {len(all_missing_tickers)} tickers"
-                    )
+            if not has_new_days and not missing_tickers:
+                print(f"No new trading days since {reference_frame.index.max().date()} and no new tickers to download.")
+                if not redownload_missing_tickers:
+                    print("Skipping missing ticker re-download (redownload_missing_tickers=False)")
+                    for clean_ticker in clean_tickers:
+                        ticker_status[clean_ticker] = "skipped_already_up_to_date"
                     _print_status_report(ticker_status, "EODHD per-ticker status:")
                     return existing_data
 
-                eodhd_start = last_date.strftime("%Y-%m-%d")
+                print("Checking for missing ticker data in existing dataset...")
+                tickers_with_incomplete_data = find_incomplete_eodhd_tickers(reference_frame, clean_tickers)
 
-        downloaded_parts = download_parts_for_tickers(clean_tickers, from_date=eodhd_start)
+                if not tickers_with_incomplete_data:
+                    print("No tickers found with significant missing data (>50% NaN)")
+                    _print_status_report(ticker_status, "EODHD per-ticker status:")
+                    return existing_data
+
+                print(
+                    f"Found {len(tickers_with_incomplete_data)} tickers with >50% missing data. "
+                    f"Attempting to re-download..."
+                )
+                _print_incomplete_tickers(tickers_with_incomplete_data)
+
+                all_missing_tickers = [ticker_name for ticker_name, _ in tickers_with_incomplete_data]
+                downloaded_parts_missing = download_parts_for_tickers(all_missing_tickers, from_date=None)
+                existing_data = _combine_columnar_frames(existing_data, downloaded_parts_missing, output_columns)
+
+                for ticker_name in all_missing_tickers:
+                    ticker_status.setdefault(ticker_name, "redownload_missing_attempted")
+
+                print(
+                    f"Successfully re-downloaded and merged data for {len(all_missing_tickers)} tickers"
+                )
+                _print_status_report(ticker_status, "EODHD per-ticker status:")
+                return existing_data
+
+            # If we are here, we either have new days OR missing tickers (or both)
+            if not has_new_days and missing_tickers:
+                print(f"No new trading days, but found {len(missing_tickers)} new tickers to download.")
+                # We only download the missing ones
+                downloaded_parts = download_parts_for_tickers(missing_tickers, from_date=None)
+            else:
+                # We have new days, so we download everything from eodhd_start
+                downloaded_parts = download_parts_for_tickers(clean_tickers, from_date=eodhd_start)
         result = _combine_columnar_frames(existing_data, downloaded_parts, output_columns)
 
         if save_csv:
