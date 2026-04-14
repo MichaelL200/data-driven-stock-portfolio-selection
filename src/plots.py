@@ -443,7 +443,12 @@ def coverage_over_time(
     coverage_values = []
     result_index = []
 
+    component_dates = components_df["date"].tolist()
+    date_to_pos = {date: pos for pos, date in enumerate(component_dates)}
+    missing_tracker: dict[str, dict[str, list[pd.Timestamp]]] = {}
+
     for _, row in components_df.iterrows():
+
         date = row["date"]
         active_tickers = {ticker.strip() for ticker in str(row["tickers"]).split(",") if ticker.strip()}
         if not active_tickers:
@@ -466,10 +471,18 @@ def coverage_over_time(
         for ticker in active_tickers:
             if ticker not in df.columns:
                 not_downloaded += 1
+                ticker_tracker = missing_tracker.setdefault(
+                    ticker, {"missing": [], "not_downloaded": []}
+                )
+                ticker_tracker["not_downloaded"].append(date)
             elif pd.notna(row_data.get(ticker)):
                 available += 1
             else:
                 missing += 1
+                ticker_tracker = missing_tracker.setdefault(
+                    ticker, {"missing": [], "not_downloaded": []}
+                )
+                ticker_tracker["missing"].append(date)
 
         total = len(active_tickers)
         coverage_pct = available / total * 100 if total else 0.0
@@ -511,6 +524,50 @@ def coverage_over_time(
     fig.tight_layout()
 
     plt.show()
+
+    def _to_periods(dates: list[pd.Timestamp]) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+        if not dates:
+            return []
+        unique_dates = sorted(set(dates), key=lambda d: date_to_pos[d])
+        periods: list[tuple[pd.Timestamp, pd.Timestamp]] = []
+        start = unique_dates[0]
+        prev = unique_dates[0]
+
+        for curr in unique_dates[1:]:
+            if date_to_pos[curr] == date_to_pos[prev] + 1:
+                prev = curr
+                continue
+            periods.append((start, prev))
+            start = curr
+            prev = curr
+
+        periods.append((start, prev))
+        return periods
+
+    if missing_tracker:
+        print("Missing ticker coverage periods:")
+        for ticker in sorted(missing_tracker):
+            ticker_data = missing_tracker[ticker]
+            missing_periods = _to_periods(ticker_data["missing"])
+            not_downloaded_periods = _to_periods(ticker_data["not_downloaded"])
+
+            if not missing_periods and not not_downloaded_periods:
+                continue
+
+            print(f"- {ticker}:")
+            for start, end in missing_periods:
+                if start == end:
+                    print(f"  missing on {start.date()}")
+                else:
+                    print(f"  missing from {start.date()} to {end.date()}")
+
+            for start, end in not_downloaded_periods:
+                if start == end:
+                    print(f"  not downloaded on {start.date()}")
+                else:
+                    print(f"  not downloaded from {start.date()} to {end.date()}")
+    else:
+        print("No missing ticker periods found.")
 
     return result_df
 
