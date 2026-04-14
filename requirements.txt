@@ -11,5 +11,4 @@ ipykernel==7.2.0
 wikipedia==1.4.0
 lxml==6.0.2
 yfinance==1.2.0
-pandas_market_calendars==5.3.1.2
 eodhd==1.0.32

@@ -9,7 +9,6 @@ import random
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
-import pandas_market_calendars as mcal
 
 import papermill as pm
 import yfinance as yf
@@ -44,35 +43,6 @@ _EODHD_COLUMN_MAP = [
 _EODHD_OUTPUT_COLUMNS = [target for _, target in _EODHD_COLUMN_MAP]
 
 
-def tickers_from_sp500_components(sp500_components: pd.DataFrame) -> list[str]:
-    tickers_col = "tickers"
-    if tickers_col not in sp500_components.columns:
-        raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
-
-    exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
-    raw_tickers = (
-        exploded.explode()
-        .astype(str)
-        .str.strip()
-        .replace("", pd.NA)
-        .dropna()
-        .drop_duplicates()
-    )
-    clean = [str(ticker).strip() for ticker in sorted(raw_tickers.tolist()) if str(ticker).strip()]
-    print("Number of unique tickers extracted:", len(clean))
-    return clean
-
-
-def _has_new_trading_days(last_date: pd.Timestamp, today: pd.Timestamp = None) -> bool:
-    if today is None:
-        today = pd.Timestamp.now(tz="UTC").normalize()
-    calendar = mcal.get_calendar("NYSE")
-    schedule = calendar.schedule(start_date=last_date.date(), end_date=today.date())
-    trading_days = pd.to_datetime(schedule.index, utc=True).normalize()
-    completed_trading_days = trading_days[trading_days < today]
-    return (completed_trading_days > last_date.normalize()).any()
-
-
 def _normalize_columnar_index(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
     result.index = pd.to_datetime(result.index, utc=True).normalize()
@@ -91,6 +61,25 @@ class SP500:
     src_dir: Path = PROJ_ROOT / submodule_name
     dst_dir: Path = EXTERNAL_DATA_DIR / submodule_name
     dst_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def extract_tickers(sp500_components: pd.DataFrame) -> list[str]:
+        tickers_col = "tickers"
+        if tickers_col not in sp500_components.columns:
+            raise KeyError(f"Column '{tickers_col}' not found in sp500_components")
+
+        exploded = sp500_components[tickers_col].dropna().astype(str).str.split(",")
+        raw_tickers = (
+            exploded.explode()
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .drop_duplicates()
+        )
+        clean = [str(ticker).strip() for ticker in sorted(raw_tickers.tolist()) if str(ticker).strip()]
+        print("Number of unique tickers extracted:", len(clean))
+        return clean
 
     @classmethod
     def _run_notebook(cls, nb_path: Path):
@@ -173,11 +162,11 @@ class SP500:
         return pd.read_csv(latest_file)
 
     @classmethod
-    def load_current(cls, save_csv: bool = False) -> pd.DataFrame:
+    def load_current(cls) -> pd.DataFrame:
         return cls._load("sp500_????-??-??.csv")
 
     @classmethod
-    def load_historical(cls, save_csv: bool = False) -> pd.DataFrame:
+    def load_historical(cls) -> pd.DataFrame:
         return cls._load("sp500_historical_????-??-??.csv")
 
 
@@ -254,26 +243,6 @@ class StockDataSource:
 
         return result
 
-    @staticmethod
-    def _find_incomplete_requested_tickers(
-        reference_frame: pd.DataFrame,
-        tickers: list[str],
-        nan_threshold: float = 0.5,
-    ) -> list[str]:
-
-        incomplete: list[str] = []
-        if reference_frame.empty:
-            return incomplete
-
-        for ticker in tickers:
-            if ticker in reference_frame.columns:
-                ticker_data = reference_frame[ticker]
-                nan_ratio = ticker_data.isna().mean()
-                if nan_ratio > nan_threshold:
-                    incomplete.append(ticker)
-
-        return incomplete
-
     @classmethod
     def _load_ticker_from_columnar(cls, ticker: str) -> pd.DataFrame:
 
@@ -293,44 +262,6 @@ class StockDataSource:
         result = pd.DataFrame(series)
         result.index.name = "Date"
         return result
-
-    @classmethod
-    def _categorise_tickers(
-        cls,
-        tickers: list[str],
-        existing: dict[str, pd.DataFrame],
-    ) -> tuple[list[str], list[str], pd.Timestamp | None]:
-
-        reference = existing.get("Close", pd.DataFrame())
-
-        if reference.empty:
-            print(f"No existing data found. Downloading full history for {len(tickers)} tickers.")
-            return [], list(tickers), None
-
-        last_date = reference.index.max()
-        today = pd.Timestamp.now(tz="UTC").normalize()
-        existing_set = {
-            str(t).strip()
-            for t in reference.columns
-            if str(t).strip() and reference[str(t).strip()].notna().any()
-        }
-
-        tickers_for_update: list[str] = []
-        tickers_for_full: list[str] = [t for t in tickers if t not in existing_set]
-
-        if _has_new_trading_days(last_date, today):
-            tickers_for_update = [str(t).strip() for t in reference.columns if str(t).strip() in existing_set]
-            print(
-                f"New trading days found since {last_date.date()}. "
-                f"Updating {len(tickers_for_update)} existing tickers."
-            )
-        else:
-            print(f"No new trading days since {last_date.date()}.")
-
-        if tickers_for_full:
-            print(f"Downloading full history for {len(tickers_for_full)} new tickers.")
-
-        return tickers_for_update, tickers_for_full, last_date
 
 
 class YahooFinance(StockDataSource):
@@ -357,8 +288,7 @@ class YahooFinance(StockDataSource):
         *,
         batch_size: int,
         sleep_seconds: float,
-        period: str = None,
-        start: pd.Timestamp = None,
+        period: str = "max",
     ) -> dict[str, list[pd.DataFrame]]:
 
         downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in cls.output_columns}
@@ -366,15 +296,12 @@ class YahooFinance(StockDataSource):
         for batch_index, batch_start in enumerate(range(0, len(tickers), batch_size)):
             batch = tickers[batch_start: batch_start + batch_size]
             download_kwargs: dict = {
+                "period": period,
                 "auto_adjust": False,
                 "actions": True,
                 "timeout": 30,
                 "progress": False,
             }
-            if period is not None:
-                download_kwargs["period"] = period
-            if start is not None:
-                download_kwargs["start"] = start
 
             print(f"Downloading batch {batch_index + 1} ({len(batch)} tickers)...")
             batch_df = yf.download(batch, **download_kwargs)
@@ -406,7 +333,6 @@ class YahooFinance(StockDataSource):
         tickers: list[str],
         batch_size: int = 200,
         sleep_seconds: float = 2.0,
-        save_csv: bool = True,
     ) -> None:
 
         tickers = [str(t).strip() for t in tickers if str(t).strip()]
@@ -415,41 +341,20 @@ class YahooFinance(StockDataSource):
             return
 
         existing = cls._load_existing_columnar()
-        tickers_for_update, tickers_for_full, last_date = cls._categorise_tickers(tickers, existing)
-
-        if not tickers_for_update and not tickers_for_full:
-            return
-
-        downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in cls.output_columns}
-
-        if tickers_for_update:
-            parts = cls._fetch_batches(
-                tickers_for_update,
-                start=last_date,
-                batch_size=batch_size,
-                sleep_seconds=sleep_seconds,
-            )
-            for col in cls.output_columns:
-                downloaded_parts[col].extend(parts[col])
-
-        if tickers_for_full:
-            parts = cls._fetch_batches(
-                tickers_for_full,
-                period="max",
-                batch_size=batch_size,
-                sleep_seconds=sleep_seconds,
-            )
-            for col in cls.output_columns:
-                downloaded_parts[col].extend(parts[col])
+        print(f"Downloading full history for {len(tickers)} tickers.")
+        downloaded_parts = cls._fetch_batches(
+            tickers,
+            batch_size=batch_size,
+            sleep_seconds=sleep_seconds,
+            period="max",
+        )
 
         result = cls._merge_columnar(existing, downloaded_parts)
-
-        if save_csv:
-            cls._save_columnar(result)
+        cls._save_columnar(result)
 
     @classmethod
-    def download_ticker(cls, ticker: str, save_csv: bool = True) -> None:
-        cls.download([ticker], save_csv=save_csv)
+    def download_ticker(cls, ticker: str) -> None:
+        cls.download([ticker])
 
     @classmethod
     def load(cls) -> dict[str, pd.DataFrame]:
@@ -515,7 +420,6 @@ class EODHD(StockDataSource):
         tickers: list[str],
         *,
         client: eodhd.APIClient,
-        from_date: str = None,
     ) -> dict[str, list[pd.DataFrame]]:
 
         downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in cls.output_columns}
@@ -528,8 +432,6 @@ class EODHD(StockDataSource):
         for ticker in tickers:
             api_symbol = f"{ticker}.US"
             kwargs: dict = {"symbol": api_symbol, "period": "d", "order": "a"}
-            if from_date is not None:
-                kwargs["from_date"] = from_date
 
             try:
                 raw_data = client.get_eod_historical_stock_market_data(**kwargs)
@@ -559,7 +461,6 @@ class EODHD(StockDataSource):
         cls,
         tickers: list[str],
         api_key: str = None,
-        save_csv: bool = True,
     ) -> None:
 
         client = cls._resolve_client(api_key=api_key)
@@ -571,32 +472,15 @@ class EODHD(StockDataSource):
             return
 
         existing = cls._load_existing_columnar()
-        tickers_for_update, tickers_for_full, last_date = cls._categorise_tickers(tickers, existing)
-
-        if not tickers_for_update and not tickers_for_full:
-            return
-
-        downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in cls.output_columns}
-
-        if tickers_for_update:
-            from_date = last_date.strftime("%Y-%m-%d")
-            parts = cls._fetch_tickers(tickers_for_update, client=client, from_date=from_date)
-            for col in cls.output_columns:
-                downloaded_parts[col].extend(parts[col])
-
-        if tickers_for_full:
-            parts = cls._fetch_tickers(tickers_for_full, client=client, from_date=None)
-            for col in cls.output_columns:
-                downloaded_parts[col].extend(parts[col])
+        print(f"Downloading full history for {len(tickers)} tickers.")
+        downloaded_parts = cls._fetch_tickers(tickers, client=client)
 
         result = cls._merge_columnar(existing, downloaded_parts)
-
-        if save_csv:
-            cls._save_columnar(result)
+        cls._save_columnar(result)
 
     @classmethod
-    def download_ticker(cls, ticker: str, api_key: str = None, save_csv: bool = True) -> None:
-        cls.download([ticker], api_key=api_key, save_csv=save_csv)
+    def download_ticker(cls, ticker: str, api_key: str = None) -> None:
+        cls.download([ticker], api_key=api_key)
 
     @classmethod
     def load(cls) -> dict[str, pd.DataFrame]:
