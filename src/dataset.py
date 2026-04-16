@@ -294,6 +294,7 @@ class YahooFinance(StockDataSource):
         downloaded_parts: dict[str, list[pd.DataFrame]] = {col: [] for col in cls.output_columns}
 
         for batch_index, batch_start in enumerate(range(0, len(tickers), batch_size)):
+
             batch = tickers[batch_start: batch_start + batch_size]
             download_kwargs: dict = {
                 "period": period,

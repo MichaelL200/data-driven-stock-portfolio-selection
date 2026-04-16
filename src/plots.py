@@ -257,18 +257,39 @@ class YahooFinance:
     @classmethod
     def show_last_split(cls, df: pd.DataFrame) -> pd.DataFrame:
 
-        splits = df[df["Stock_Splits"] != 0]
+        curr_df = df.copy()
+
+        # Handle MultiIndex columns (raw yf.download output)
+        if isinstance(curr_df.columns, pd.MultiIndex):
+            tickers = curr_df.columns.get_level_values(1).unique()
+            if len(tickers) > 0:
+                ticker = tickers[0]
+                # Extract first ticker's data to flatten columns
+                curr_df = curr_df.xs(ticker, level=1, axis=1)
+
+        # Check for both "Stock_Splits" (internal) and "Stock Splits" (yfinance)
+        split_col = "Stock_Splits" if "Stock_Splits" in curr_df.columns else "Stock Splits"
+
+        if split_col not in curr_df.columns:
+            print(f"No stock splits column found in the data. Columns: {list(curr_df.columns)}")
+            return pd.DataFrame()
+
+        splits = curr_df[curr_df[split_col] != 0]
         if splits.empty:
-            print("No stock splits found in the data for this ticker.")
+            print("No stock splits found in the provided data range for this ticker.")
             return pd.DataFrame()
 
         last_split_date = splits.index[-1]
-        last_split_pos = df.index.get_loc(last_split_date)
+        last_split_pos = curr_df.index.get_loc(last_split_date)
 
         start = max(last_split_pos - 1, 0)
-        end = min(last_split_pos + 2, len(df))
+        end = min(last_split_pos + 2, len(curr_df))
 
-        return df.iloc[start:end][["Open", "Adj_Close", "Dividends", "Stock_Splits"]]
+        # Dynamically select available columns
+        potential_cols = ["Open", "Adj_Close", "Adj Close", "Dividends", "Stock_Splits", "Stock Splits"]
+        available_cols = [c for c in potential_cols if c in curr_df.columns]
+
+        return curr_df.iloc[start:end][available_cols]
 
     @classmethod
     def show_chart(
@@ -282,10 +303,22 @@ class YahooFinance:
         title: str | None = None,
     ) -> pd.DataFrame:
 
-        if col not in df.columns:
-            raise ValueError(f"Column {col} not found in {label}")
-
         curr_df = df.copy()
+
+        # Handle MultiIndex columns (raw yf.download output)
+        if isinstance(curr_df.columns, pd.MultiIndex):
+            tickers = curr_df.columns.get_level_values(1).unique()
+            # Try to find specific ticker if label matches, otherwise take first
+            target_ticker = label if label in tickers else (tickers[0] if len(tickers) > 0 else None)
+            if target_ticker:
+                curr_df = curr_df.xs(target_ticker, level=1, axis=1)
+
+        if col not in curr_df.columns:
+            alt_col = col.replace("_", " ")
+            if alt_col in curr_df.columns:
+                col = alt_col
+            else:
+                raise ValueError(f"Column {col} not found in {label}")
 
         # Ensure datetime index
         if "date" in curr_df.columns:
@@ -344,10 +377,22 @@ class YahooFinance:
 
         for label, df in dfs.items():
 
-            if col not in df.columns:
-                raise ValueError(f"Column {col} not found in {label}")
-
             curr_df = df.copy()
+
+            # Handle MultiIndex columns (raw yf.download output)
+            if isinstance(curr_df.columns, pd.MultiIndex):
+                tickers = curr_df.columns.get_level_values(1).unique()
+                # Try to find specific ticker if label matches, otherwise take first
+                target_ticker = label if label in tickers else (tickers[0] if len(tickers) > 0 else None)
+                if target_ticker:
+                    curr_df = curr_df.xs(target_ticker, level=1, axis=1)
+
+            if col not in curr_df.columns:
+                alt_col = col.replace("_", " ")
+                if alt_col in curr_df.columns:
+                    col = alt_col
+                else:
+                    raise ValueError(f"Column {col} not found in {label}")
 
             # Ensure datetime index
             if "date" in curr_df.columns:
