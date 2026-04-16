@@ -6,9 +6,33 @@ This document lists all tickers with missing data periods for each data source, 
 > - **missing** — data was expected for the period but is absent in the source feed
 > - **not downloaded** *(EODHD only)* — data was never fetched from the API; the ticker was outside the subscription plan, used an unsupported share class/exchange, or was skipped by the downloader
 
+## Summary
+
+| Data Source | Count |
+|-------------|------:|
+| Yahoo Finance | 242 |
+| EODHD | 297 |
+| Total | 539 |
+
 ---
 
 ## Yahoo Finance
+
+### Summary
+
+| Metric | Count |
+|--------|------:|
+| Total missing tickers | 242 |
+
+#### Reason Breakdown
+
+| Category | Count | % Source |
+|----------|------:|---------:|
+| Company Acquired / Merged | 175 | 72.31% |
+| Insufficient Historical Data | 22 | 9.09% |
+| Spin-off / Rename | 19 | 7.85% |
+| Bankruptcy / Delisting | 18 | 7.44% |
+| Patchy / Fragmented Data | 8 | 3.31% |
 
 ### 1. Company Acquired / Merged — Ticker Retired
 
@@ -304,6 +328,21 @@ These tickers show many non-contiguous isolated missing days or short blocks sca
 ---
 
 ## EODHD
+
+### Summary
+
+| Metric | Count |
+|--------|------:|
+| Total missing tickers | 297 |
+
+#### Reason Breakdown
+
+| Category | Count | % Source |
+|----------|------:|---------:|
+| Company Acquired / Merged | 131 | 44.11% |
+| Insufficient Historical Data | 115 | 38.72% |
+| Not Downloaded | 43 | 14.48% |
+| Patchy / Fragmented Data | 8 | 2.69% |
 
 ### 1. Company Acquired / Merged — Ticker Retired
 
@@ -624,3 +663,21 @@ A small number of tickers exhibit many non-contiguous isolated missing days rath
 | NYX | 2007-10-25 → 2013-11-07 (+ 2 isolated gaps in 2010) | NYSE Euronext; mostly contiguous gap with two stray missing days |
 | SNT | isolated days in 1996–1999 | Sonat Inc.; very sparse individual missing trading days |
 | SVU | isolated days in 1996–1997 | SUPERVALU; three scattered missing trading days |
+
+<!--
+{
+  "Yahoo Finance": {
+    "Company Acquired / Merged": 175,
+    "Bankruptcy / Delisting": 18,
+    "Spin-off / Rename": 19,
+    "Insufficient Historical Data": 22,
+    "Patchy / Fragmented Data": 8
+  },
+  "EODHD": {
+    "Company Acquired / Merged": 131,
+    "Not Downloaded": 43,
+    "Insufficient Historical Data": 115,
+    "Patchy / Fragmented Data": 8
+  }
+}
+-->

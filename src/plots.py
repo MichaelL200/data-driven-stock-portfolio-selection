@@ -3,6 +3,8 @@ Code to create visualizations
 """
 
 from pathlib import Path
+import json
+import re
 import matplotlib as mpl
 from matplotlib.dates import relativedelta
 import pandas as pd
@@ -10,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from IPython.display import display
 
-from config import PROCESSED_DATA_DIR, FIGURES_DIR
+from config import PROCESSED_DATA_DIR, FIGURES_DIR, REPORTS_DIR
 
 
 # Paul Tol's colorblind-safe palette
@@ -571,6 +573,7 @@ def coverage_over_time(
     plt.show()
 
     def _to_periods(dates: list[pd.Timestamp]) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+
         if not dates:
             return []
         unique_dates = sorted(set(dates), key=lambda d: date_to_pos[d])
@@ -615,6 +618,61 @@ def coverage_over_time(
         print("No missing ticker periods found.")
 
     return result_df
+
+
+def plot_missing_data_reasons(source: str):
+
+    report_path = REPORTS_DIR / "missing_ticker_coverage.md"
+    if not report_path.exists():
+        print(f"Warning: {report_path} not found.")
+        return
+
+    with open(report_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Find the JSON comment at the end of the file
+    match = re.search(r"<!--\s*({.*?})\s*-->", content, re.DOTALL)
+    if not match:
+        print("Warning: No JSON data found in reports/missing_ticker_coverage.md.")
+        return
+
+    try:
+        data = json.loads(match.group(1))
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON from report: {e}")
+        return
+
+    if source not in data:
+        print(f"Warning: Source '{source}' not found in data. Available: {list(data.keys())}")
+        return
+
+    source_data = data[source]
+    labels = list(source_data.keys())
+    values = list(source_data.values())
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    # Pie chart
+    wedges, texts, autotexts = ax.pie(
+        values,
+        labels=labels,
+        autopct='%1.1f%%',
+        startangle=140,
+        colors=TOL_COLORS,
+        pctdistance=0.80,
+        explode=[0.03] * len(labels),
+        textprops={'fontsize': 10}
+    )
+
+    # Style percentages
+    plt.setp(autotexts, size=9, weight="bold", color="white")
+
+    ax.set_title(f"Reasons for missing data - {source}", fontsize=12, pad=20)
+    ax.axis('equal')
+
+    plt.tight_layout()
+    plt.show()
 
 
 def main(
