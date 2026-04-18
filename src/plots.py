@@ -106,17 +106,25 @@ def setup_plot(title: str, xlabel: str, ylabel: str, legend: bool = True):
     return fig, ax
 
 
-def finalize_plot(fig, ax):
+def finalize_plot(fig, ax, save_figures: bool = True, filename: str | None = None):
     if getattr(ax, '_show_legend', False):
         ax.legend()
     fig.tight_layout()
+    if save_figures and filename is not None:
+        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+        fig.savefig(FIGURES_DIR / filename)
     plt.show()
 
 
 class SP500:
 
     @classmethod
-    def companies_per_year_start(cls, df: pd.DataFrame) -> pd.DataFrame:
+    def companies_per_year_start(
+        cls,
+        df: pd.DataFrame,
+        save_figures: bool = True,
+        filename: str | None = None,
+    ) -> pd.DataFrame:
 
         df = df.copy()
         df['date'] = pd.to_datetime(df['date'])
@@ -146,12 +154,17 @@ class SP500:
             color=COLORS['num_companies'],
         )
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-        finalize_plot(fig, ax)
+        finalize_plot(fig, ax, save_figures=save_figures, filename=filename)
 
         return result_df
 
     @classmethod
-    def yearly_changes(cls, df: pd.DataFrame) -> pd.DataFrame:
+    def yearly_changes(
+        cls,
+        df: pd.DataFrame,
+        save_figures: bool = True,
+        filename: str | None = None,
+    ) -> pd.DataFrame:
 
         df = df.copy()
         df['date'] = pd.to_datetime(df['date'])
@@ -207,12 +220,18 @@ class SP500:
         )
         ax.grid(False, axis='x')
         ax.grid(True, axis='y', alpha=0.3)
-        finalize_plot(fig, ax)
+        finalize_plot(fig, ax, save_figures=save_figures, filename=filename)
 
         return result_df
 
     @classmethod
-    def count_unique_companies(cls, df: pd.DataFrame, return_count: bool = False) -> pd.DataFrame:
+    def count_unique_companies(
+        cls,
+        df: pd.DataFrame,
+        return_count: bool = False,
+        save_figures: bool = True,
+        filename: str | None = None,
+    ) -> pd.DataFrame:
 
         df = df.copy()
         df["date"] = pd.to_datetime(df["date"])
@@ -238,7 +257,7 @@ class SP500:
             df["unique_cum"],
             color=COLORS['cumulative'],
         )
-        finalize_plot(fig, ax)
+        finalize_plot(fig, ax, save_figures=save_figures, filename=filename)
 
         start_date = df["date"].min()
         end_date = df["date"].max()
@@ -303,6 +322,8 @@ class YahooFinance:
         end_date: pd.Timestamp | None = None,
         hide_col: bool = False,
         title: str | None = None,
+        save_figures: bool = True,
+        filename: str | None = None,
     ) -> pd.DataFrame:
 
         curr_df = df.copy()
@@ -360,7 +381,7 @@ class YahooFinance:
 
         ax.grid(False, axis='x')
         ax.grid(True, axis='y', alpha=0.3)
-        finalize_plot(fig, ax)
+        finalize_plot(fig, ax, save_figures=save_figures, filename=filename)
 
         return df_plot
 
@@ -373,6 +394,8 @@ class YahooFinance:
         end_date: pd.Timestamp | None = None,
         hide_col: bool = False,
         title: str | None = None,
+        save_figures: bool = True,
+        filename: str | None = None,
     ) -> pd.DataFrame:
 
         aligned_series: dict[str, pd.Series] = {}
@@ -455,7 +478,7 @@ class YahooFinance:
 
         ax.grid(False, axis='x')
         ax.grid(True, axis='y', alpha=0.3)
-        finalize_plot(fig, ax)
+        finalize_plot(fig, ax, save_figures=save_figures, filename=filename)
 
         return df_comp
 
@@ -464,6 +487,8 @@ def coverage_over_time(
     price_data: dict[str, pd.DataFrame],
     sp500_components: pd.DataFrame,
     col: str = "Adj_Close",
+    save_figures: bool = True,
+    filename: str | None = None,
 ) -> pd.DataFrame:
 
     if col not in price_data:
@@ -570,6 +595,10 @@ def coverage_over_time(
 
     fig.tight_layout()
 
+    if save_figures and filename is not None:
+        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+        fig.savefig(FIGURES_DIR / filename)
+
     plt.show()
 
     def _to_periods(dates: list[pd.Timestamp]) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
@@ -620,7 +649,11 @@ def coverage_over_time(
     return result_df
 
 
-def plot_missing_data_reasons(source: str):
+def plot_missing_data_reasons(
+    source: str,
+    save_figures: bool = True,
+    filename: str | None = None,
+):
 
     report_path = REPORTS_DIR / "missing_ticker_coverage.md"
     if not report_path.exists():
@@ -672,6 +705,9 @@ def plot_missing_data_reasons(source: str):
     ax.axis('equal')
 
     plt.tight_layout()
+    if save_figures and filename is not None:
+        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+        fig.savefig(FIGURES_DIR / filename)
     plt.show()
 
 
