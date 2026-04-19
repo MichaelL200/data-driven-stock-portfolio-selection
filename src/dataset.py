@@ -15,7 +15,7 @@ import yfinance as yf
 import eodhd
 from dotenv import load_dotenv
 
-from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
+from config import EXTERNAL_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
 
 _YF_COLUMN_MAP = [
@@ -542,9 +542,8 @@ def merge_price_data(
 
 def save_merged_data(
     df: dict[str, pd.DataFrame],
-    output_path: Path,
 ) -> None:
-    output_path = Path(output_path)
+    output_path = Path(INTERIM_DATA_DIR)
     output_path.mkdir(parents=True, exist_ok=True)
 
     for col, frame in df.items():
