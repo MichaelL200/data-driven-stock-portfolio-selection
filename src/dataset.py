@@ -15,7 +15,7 @@ import yfinance as yf
 import eodhd
 from dotenv import load_dotenv
 
-from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
+from config import EXTERNAL_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
 
 _YF_COLUMN_MAP = [
@@ -494,6 +494,64 @@ class EODHD(StockDataSource):
     def load_ticker(cls, ticker: str) -> pd.DataFrame:
         clean_ticker = str(ticker).strip().removesuffix(".US")
         return cls._load_ticker_from_columnar(clean_ticker)
+
+
+def merge_price_data(
+    df_yahoo: dict[str, pd.DataFrame],
+    df_eodhd: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
+    all_keys = set(df_yahoo) | set(df_eodhd)
+    result: dict[str, pd.DataFrame] = {}
+
+    for key in sorted(all_keys):
+        yahoo_frame = df_yahoo.get(key, pd.DataFrame())
+        eodhd_frame = df_eodhd.get(key, pd.DataFrame())
+
+        if yahoo_frame.empty and eodhd_frame.empty:
+            result[key] = pd.DataFrame()
+            continue
+
+        if yahoo_frame.empty:
+            result[key] = eodhd_frame.copy()
+            continue
+
+        if eodhd_frame.empty:
+            result[key] = yahoo_frame.copy()
+            continue
+
+        overlapping = yahoo_frame.columns.intersection(eodhd_frame.columns)
+        yahoo_only = yahoo_frame.columns.difference(eodhd_frame.columns)
+
+        eodhd_preferred = eodhd_frame.copy()
+        if len(overlapping):
+            eodhd_preferred[overlapping] = eodhd_frame[overlapping].combine_first(
+                yahoo_frame[overlapping]
+            )
+
+        if len(yahoo_only):
+            merged = pd.concat(
+                [eodhd_preferred, yahoo_frame[yahoo_only]], axis=1
+            ).sort_index()
+        else:
+            merged = eodhd_preferred.sort_index()
+
+        result[key] = merged
+
+    return result
+
+
+def save_merged_data(
+    df: dict[str, pd.DataFrame],
+) -> None:
+    output_path = Path(INTERIM_DATA_DIR)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    for col, frame in df.items():
+        if frame.empty or frame.dropna(how="all").empty:
+            continue
+        path = output_path / f"{col}.csv"
+        frame.to_csv(path)
+        print(f"Saved {col}.csv ({len(frame)} rows x {len(frame.columns)} columns)")
 
 
 def main(
