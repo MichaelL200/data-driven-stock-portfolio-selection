@@ -497,43 +497,44 @@ class EODHD(StockDataSource):
 
 
 def merge_price_data(
-    df_yahoo: dict[str, pd.DataFrame],
-    df_eodhd: dict[str, pd.DataFrame],
+    primary_data: dict[str, pd.DataFrame],
+    supplemental_data: dict[str, pd.DataFrame],
 ) -> dict[str, pd.DataFrame]:
-    all_keys = set(df_yahoo) | set(df_eodhd)
+
+    all_keys = set(primary_data) | set(supplemental_data)
     result: dict[str, pd.DataFrame] = {}
 
     for key in sorted(all_keys):
-        yahoo_frame = df_yahoo.get(key, pd.DataFrame())
-        eodhd_frame = df_eodhd.get(key, pd.DataFrame())
+        primary_frame = primary_data.get(key, pd.DataFrame())
+        supplemental_frame = supplemental_data.get(key, pd.DataFrame())
 
-        if yahoo_frame.empty and eodhd_frame.empty:
+        if primary_frame.empty and supplemental_frame.empty:
             result[key] = pd.DataFrame()
             continue
 
-        if yahoo_frame.empty:
-            result[key] = eodhd_frame.copy()
+        if primary_frame.empty:
+            result[key] = supplemental_frame.copy()
             continue
 
-        if eodhd_frame.empty:
-            result[key] = yahoo_frame.copy()
+        if supplemental_frame.empty:
+            result[key] = primary_frame.copy()
             continue
 
-        overlapping = yahoo_frame.columns.intersection(eodhd_frame.columns)
-        yahoo_only = yahoo_frame.columns.difference(eodhd_frame.columns)
+        overlapping = primary_frame.columns.intersection(supplemental_frame.columns)
+        supplemental_only = supplemental_frame.columns.difference(primary_frame.columns)
 
-        eodhd_preferred = eodhd_frame.copy()
+        primary_preferred = primary_frame.copy()
         if len(overlapping):
-            eodhd_preferred[overlapping] = eodhd_frame[overlapping].combine_first(
-                yahoo_frame[overlapping]
+            primary_preferred[overlapping] = primary_frame[overlapping].combine_first(
+                supplemental_frame[overlapping]
             )
 
-        if len(yahoo_only):
+        if len(supplemental_only):
             merged = pd.concat(
-                [eodhd_preferred, yahoo_frame[yahoo_only]], axis=1
+                [primary_preferred, supplemental_frame[supplemental_only]], axis=1
             ).sort_index()
         else:
-            merged = eodhd_preferred.sort_index()
+            merged = primary_preferred.sort_index()
 
         result[key] = merged
 
