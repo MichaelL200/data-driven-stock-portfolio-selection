@@ -485,7 +485,7 @@ class YahooFinance:
 
 def coverage_over_time(
     price_data: dict[str, pd.DataFrame],
-    sp500_components: pd.DataFrame,
+    components: pd.DataFrame,
     col: str = "Adj_Close",
     save_figures: bool = True,
     filename: str | None = None,
@@ -494,8 +494,8 @@ def coverage_over_time(
     if col not in price_data:
         raise ValueError(f"Column {col} not found in price_data")
 
-    if sp500_components.empty:
-        raise ValueError("sp500_components is empty")
+    if components.empty:
+        raise ValueError("components is empty")
 
     df = price_data[col].copy()
 
@@ -505,7 +505,7 @@ def coverage_over_time(
         df.index = df.index.tz_localize(None)
     df = df.sort_index()
 
-    components_df = sp500_components.copy()
+    components_df = components.copy()
     components_df["date"] = pd.to_datetime(components_df["date"]).dt.normalize()
 
     available_values = []
