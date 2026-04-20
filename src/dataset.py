@@ -431,6 +431,7 @@ class EODHD(StockDataSource):
         print(f"Downloading {len(tickers)} tickers...")
 
         for ticker in tickers:
+
             api_symbol = f"{ticker}.US"
             kwargs: dict = {"symbol": api_symbol, "period": "d", "order": "a"}
 
@@ -464,7 +465,7 @@ class EODHD(StockDataSource):
         api_key: str = None,
     ) -> None:
 
-        client = cls._resolve_client(api_key=api_key)
+        client: eodhd.APIClient = cls._resolve_client(api_key=api_key)
 
         tickers = [str(t).strip().removesuffix(".US") for t in tickers if str(t).strip()]
         tickers = sorted(dict.fromkeys(tickers))
@@ -494,6 +495,24 @@ class EODHD(StockDataSource):
     def load_ticker(cls, ticker: str) -> pd.DataFrame:
         clean_ticker = str(ticker).strip().removesuffix(".US")
         return cls._load_ticker_from_columnar(clean_ticker)
+
+    @classmethod
+    def get_delisted_tickers(cls, api_key: str = None) -> pd.DataFrame:
+
+        client: eodhd.APIClient = cls._resolve_client(api_key=api_key)
+
+        try:
+
+            raw_data = client.get_list_of_tickers(code="US", delisted=1)
+            frame = pd.DataFrame(raw_data)
+
+            path = cls.dst_dir / "delisted_tickers.csv"
+            frame.to_csv(path)
+
+            return frame
+        except Exception as exc:
+            print(f"Failed to download delisted tickers data: {exc}")
+            return pd.DataFrame()
 
 
 def merge_price_data(
