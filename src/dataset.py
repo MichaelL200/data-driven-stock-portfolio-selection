@@ -398,6 +398,137 @@ class EODHD(StockDataSource):
         return eodhd.APIClient(api_key)
 
     @staticmethod
+    def _resolve_api_symbol(ticker: str) -> str:
+
+        def _add_us_suffix(t: str) -> str:
+            return f"{t}.US" if not t.endswith(".US") else t
+
+        map: dict[str, str] = {
+            "ABI": "BUD_old",
+            "ADCT": "ADCT_old",
+            "ADT": "ADT_old",
+            "AGC": "AGR_old",
+            "ALTR": "ALTR_old",
+            "AM": "AM_old",
+            # "ANDW": "ANDW",
+            "ARC": "ATV1",
+            "ARNC": "ARNC_old",
+            "ASO": "ASO_old",
+            "AT": "AT_old1",
+            "AV": "AV_old",
+            "BBBY": "BBBY_old",
+            "BEAM": "BEAM_old",
+            # "BHGE": "BHGE",
+            "BSC": "BSC_old",
+            "BUD": "BUD_old",
+            "CA": "CA_old",
+            "CAM": "CAM_old",
+            "CCE": "CCE_old",
+            "CE": "CZ",
+            "CEG": "CEG_old",
+            "CEN": "CEN1",
+            # "CF": ???,
+            "CHK": "CHK_old",
+            "CHIR": "CHIR1",
+            # "CNC": ???,          # not in CSV (Centene)
+            # "CNXT": ???,         # not in CSV (Conexant)
+            "CPWR": "CPWR_old",
+            "CR": "CR_old",
+            "DELL": "DELL_old",
+            # "DG": ???,           # not in CSV (Dollar General)
+            "DNB": "DNB_old",
+            "DO": "DO_old",
+            "DOW": "DOW_old",
+            "DTV": "DTV_old",
+            "DYN": "DYN_old",
+            # "EC": ???,           # not in CSV (Engelhard)
+            "EMC": "EMC_old",
+            "FB": "FB_old",
+            "FDC": "FDC_old",
+            # "FOX": ???,          # not in CSV (21st Century Fox)
+            # "FRO": ???,          # not in CSV (Frontline)
+            "FRX": "FRX_old",
+            "G": "G_old",
+            "GDT": "GDT_old",
+            # "GLD": ???,          # not in CSV (Glidden)
+            "GLK": "GLK_old",
+            # "GNT": ???,          # not in CSV (Genentech; DNA_old is a different company)
+            # "GP": ???,           # not in CSV (Georgia-Pacific)
+            # "H": ???,            # not in CSV (Hershey/Hyatt)
+            # "HCA": ???,          # not in CSV (Hospital Corporation of America)
+            "HCP": "HCP_old",
+            "HCR": "HCR_old",
+            # "HI": ???,           # not in CSV (Household International; exact HI to Hillenbrand)
+            # "HLT": ???,          # not in CSV (Hilton Hotels)
+            "HM": "HM_old",
+            "HMA": "HMA_old",
+            "HNZ": "HNZ",          # H. J. Heinz Company (without _old — without the suffix)
+            # "I": ???,            # not in CSV (Inco Ltd; exact I to Intelsat)
+            "INFO": "INFO_old1",
+            # "IR": ???,           # not in CSV (Ingersoll Rand)
+            "KG": "KG_old",
+            # "KMI": ???,          # not in CSV (Kinder Morgan)
+            "LB": "LB_old",        # L Brands
+            "LIFE": "LIFE_old",    # Lifeline Systems
+            "LLL": "LLL_old",
+            # "LU": ???,           # not in CSV (Lucent Technologies)
+            "MDR": "MDR",          # McDermott International Inc (without _old)
+            # "MEA": ???,          # not in CSV (Mead Corporation; exact MEA to Metalico)
+            "MEDI": "MEDI_old",
+            # "MI": ???,           # not in CSV (Marshall & Ilsley)
+            "MIL": "MIL_old1",    # Millipore Corp
+            "MIR": "MIR_old",
+            "MNK": "MNK_old",
+            "MON": "MON_old",
+            "NCC": "NCC_old",
+            "NSM": "NSM_old",
+            "NYX": "NYX_old",
+            # "ONE": ???,          # not in CSV (Bank One; exact ONE to OneSmart)
+            "PCL": "PCL_old",
+            "PCS": "PCS_old",      # Sprint PCS Wireless Services
+            # "PD": ???,           # not in CSV (Phelps Dodge)
+            "PEAK": "PEAK",        # HealthPeak (without _old)
+            "PGN": "PGN_old",
+            "PLL": "PLL_old",
+            "POM": "POM_old",
+            "PSFT": "PSFT_old",
+            "PX": "PX_old",
+            "Q": "Q_old",          # Qwest Communications
+            "RAL": "RAL_old",
+            "S": "S_old",
+            "SAF": "SAF_old1",
+            "SGP": "SGP_old",
+            "SHLD": "SHLD_old",
+            "SII": "SII_old",
+            "SNDK": "SNDK_old",
+            "SPLS": "SPLS_old",
+            "STI": "STI_old",
+            # "SUN": ???,          # not in CSV (Sunoco)
+            # "SUNEQ": ???,        # not in CSV (Suntech Power; exact SUNEQ to SunEdison — a different company)
+            "SYMC": "SYMC",        # NortonLifeLock Inc / Symantec (without _old)
+            "TE": "TE_old1",
+            "TEK": "TEK_old",
+            "TMC": "TMC_old1",
+            "TMK": "TMK",          # Torchmark Corporation (without _old)
+            "TOS": "TOS_old1",     # Tosco Corp
+            "TRW": "TRW",          # TRW Automotive Holdings Corp (without _old)
+            # "TSG": ???,          # not in CSV (Sabre Holdings; exact TSG to The Stars Group — a different company)
+            # "TX": ???,           # not in CSV (Texaco)
+            "UCL": "UCL_old",
+            # "UST": ???,          # not in CSV (UST Inc.)
+            "WB": "WB_old1",       # Wachovia Corp
+            # "WLL": ???,          # not in CSV (Whittman-Hart; exact WLL to Whiting Petroleum — a different company)
+            "WLP": "WLP",          # WellPoint Inc (without _old)
+            # "WYND": ???,         # not in CSV (Wyndham; exact WYND without name)
+            "XL": "XL_old",
+        }
+
+        if ticker in map:
+            ticker = map[ticker]
+
+        return _add_us_suffix(ticker)
+
+    @staticmethod
     def _normalize_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
         if frame.empty or "date" not in frame.columns:
@@ -432,7 +563,7 @@ class EODHD(StockDataSource):
 
         for ticker in tickers:
 
-            api_symbol = f"{ticker}.US"
+            api_symbol: str = cls._resolve_api_symbol(ticker)
             kwargs: dict = {"symbol": api_symbol, "period": "d", "order": "a"}
 
             try:
