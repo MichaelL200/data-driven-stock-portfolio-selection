@@ -400,9 +400,6 @@ class EODHD(StockDataSource):
     @staticmethod
     def _resolve_api_symbol(ticker: str) -> str:
 
-        def _add_us_suffix(t: str) -> str:
-            return f"{t}.US" if not t.endswith(".US") else t
-
         map: dict[str, str] = {
             "ABI": "BUD_old",
             "ADCT": "ADCT_old",
@@ -418,7 +415,9 @@ class EODHD(StockDataSource):
             "AV": "AV_old",
             "BBBY": "BBBY_old",
             "BEAM": "BEAM_old",
+            "BF.B": "BF-A",
             # "BHGE": "BHGE",
+            "BRK-B": "BRK-A",
             "BSC": "BSC_old",
             "BUD": "BUD_old",
             "CA": "CA_old",
@@ -430,71 +429,74 @@ class EODHD(StockDataSource):
             # "CF": ???,
             "CHK": "CHK_old",
             "CHIR": "CHIR1",
-            # "CNC": ???,          # not in CSV (Centene)
-            # "CNXT": ???,         # not in CSV (Conexant)
+            "CNC": "CCNCW",
+            "CNXT": "CNXT1",
+            "COC.B": "COC-B",
             "CPWR": "CPWR_old",
             "CR": "CR_old",
             "DELL": "DELL_old",
-            # "DG": ???,           # not in CSV (Dollar General)
+            "DG": "DG1",
             "DNB": "DNB_old",
             "DO": "DO_old",
             "DOW": "DOW_old",
             "DTV": "DTV_old",
             "DYN": "DYN_old",
-            # "EC": ???,           # not in CSV (Engelhard)
+            "EC": "EC1",
             "EMC": "EMC_old",
             "FB": "FB_old",
             "FDC": "FDC_old",
-            # "FOX": ???,          # not in CSV (21st Century Fox)
-            # "FRO": ???,          # not in CSV (Frontline)
+            "FTL.A": "FTL-A",
+            "FOX": "TFCF",
+            # "FRO": ???,
             "FRX": "FRX_old",
             "G": "G_old",
             "GDT": "GDT_old",
-            # "GLD": ???,          # not in CSV (Glidden)
+            # "GLD": ???,
             "GLK": "GLK_old",
-            # "GNT": ???,          # not in CSV (Genentech; DNA_old is a different company)
-            # "GP": ???,           # not in CSV (Georgia-Pacific)
-            # "H": ???,            # not in CSV (Hershey/Hyatt)
-            # "HCA": ???,          # not in CSV (Hospital Corporation of America)
+            "GNT": "DNA_old",
+            # "GP": ???,
+            "H": "HSY",
+            "HCA": "HCA1",
             "HCP": "HCP_old",
             "HCR": "HCR_old",
-            # "HI": ???,           # not in CSV (Household International; exact HI to Hillenbrand)
-            # "HLT": ???,          # not in CSV (Hilton Hotels)
+            "HI": "HI1",
+            "HLT": "HLT1",
             "HM": "HM_old",
             "HMA": "HMA_old",
-            "HNZ": "HNZ",          # H. J. Heinz Company (without _old — without the suffix)
-            # "I": ???,            # not in CSV (Inco Ltd; exact I to Intelsat)
+            "HNZ": "HNZ",
+            # "I": ???,
             "INFO": "INFO_old1",
-            # "IR": ???,           # not in CSV (Ingersoll Rand)
+            "IR": "TT",
             "KG": "KG_old",
-            # "KMI": ???,          # not in CSV (Kinder Morgan)
-            "LB": "LB_old",        # L Brands
-            "LIFE": "LIFE_old",    # Lifeline Systems
+            "KMI": "KMI1",
+            "LB": "LB_old",
+            "LIFE": "LIFE_old",
             "LLL": "LLL_old",
-            # "LU": ???,           # not in CSV (Lucent Technologies)
-            "MDR": "MDR",          # McDermott International Inc (without _old)
-            # "MEA": ???,          # not in CSV (Mead Corporation; exact MEA to Metalico)
+            "LU": "ALU",
+            # "MDR": "MDR",
+            "MEA": "MEA1",
             "MEDI": "MEDI_old",
-            # "MI": ???,           # not in CSV (Marshall & Ilsley)
-            "MIL": "MIL_old1",    # Millipore Corp
+            "MI": "MI1",
+            "MIL": "MIL_old1",
             "MIR": "MIR_old",
             "MNK": "MNK_old",
             "MON": "MON_old",
             "NCC": "NCC_old",
             "NSM": "NSM_old",
             "NYX": "NYX_old",
-            # "ONE": ???,          # not in CSV (Bank One; exact ONE to OneSmart)
+            "ONE": "ONE1",
             "PCL": "PCL_old",
-            "PCS": "PCS_old",      # Sprint PCS Wireless Services
-            # "PD": ???,           # not in CSV (Phelps Dodge)
-            "PEAK": "PEAK",        # HealthPeak (without _old)
+            "PCS": "PCS_old",
+            "PD": "PD1",
+            # "PEAK": "PEAK",
             "PGN": "PGN_old",
             "PLL": "PLL_old",
             "POM": "POM_old",
             "PSFT": "PSFT_old",
             "PX": "PX_old",
-            "Q": "Q_old",          # Qwest Communications
+            "Q": "Q_old",
             "RAL": "RAL_old",
+            "RDS.A": "RDS-B",
             "S": "S_old",
             "SAF": "SAF_old1",
             "SGP": "SGP_old",
@@ -503,30 +505,30 @@ class EODHD(StockDataSource):
             "SNDK": "SNDK_old",
             "SPLS": "SPLS_old",
             "STI": "STI_old",
-            # "SUN": ???,          # not in CSV (Sunoco)
-            # "SUNEQ": ???,        # not in CSV (Suntech Power; exact SUNEQ to SunEdison — a different company)
-            "SYMC": "SYMC",        # NortonLifeLock Inc / Symantec (without _old)
+            "SUN": "SUN1",
+            "SUNEQ": "STPFQ",
+            # "SYMC": "SYMC",
             "TE": "TE_old1",
             "TEK": "TEK_old",
-            "TMC": "TMC_old1",
-            "TMK": "TMK",          # Torchmark Corporation (without _old)
-            "TOS": "TOS_old1",     # Tosco Corp
-            "TRW": "TRW",          # TRW Automotive Holdings Corp (without _old)
-            # "TSG": ???,          # not in CSV (Sabre Holdings; exact TSG to The Stars Group — a different company)
-            # "TX": ???,           # not in CSV (Texaco)
+            "TMC": "TMC-A",
+            # "TMK": "TMK",
+            "TOS": "TOS_old1",
+            # "TRW": "TRW",
+            "TSG": "TSG1",
+            "TX": "TX1",
             "UCL": "UCL_old",
-            # "UST": ???,          # not in CSV (UST Inc.)
-            "WB": "WB_old1",       # Wachovia Corp
-            # "WLL": ???,          # not in CSV (Whittman-Hart; exact WLL to Whiting Petroleum — a different company)
-            "WLP": "WLP",          # WellPoint Inc (without _old)
-            # "WYND": ???,         # not in CSV (Wyndham; exact WYND without name)
+            "UST": "UST1",
+            "WB": "WB_old1",
+            "WLL": "MRCH",
+            # "WLP": "WLP",
+            "WYND": "TNL",
             "XL": "XL_old",
         }
 
         if ticker in map:
             ticker = map[ticker]
 
-        return _add_us_suffix(ticker)
+        return f"{ticker}.US" if not ticker.endswith(".US") else ticker
 
     @staticmethod
     def _normalize_frame(frame: pd.DataFrame) -> pd.DataFrame:
