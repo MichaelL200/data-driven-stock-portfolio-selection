@@ -196,8 +196,28 @@ def merge_index_data(
     p = normalize(primary_df)
     s = normalize(supplemental_df)
 
-    # combine_first prefers values from 'p' and fills from 's' for
-    # both missing indices (dates) and NaN values.
+    # 1. Find the handover point (first valid date in primary)
+    # Use Adj_Close as anchor for scaling if available
+    anchor_col = "Adj_Close" if "Adj_Close" in p.columns else p.columns[0]
+    first_p_date = p[anchor_col].first_valid_index()
+
+    if first_p_date is not None and first_p_date in s.index:
+
+        # 2. Calculate scale factor at the handover point
+        p_val = p.loc[first_p_date, anchor_col]
+        s_val = s.loc[first_p_date, anchor_col]
+
+        if pd.notna(p_val) and pd.notna(s_val) and s_val != 0:
+            scale_factor = p_val / s_val
+
+            # 3. Scale all price-related columns in the supplemental dataframe
+            price_cols = ["Open", "High", "Low", "Close", "Adj_Close", "Adj Close"]
+            common_cols = p.columns.intersection(s.columns)
+            for col in common_cols:
+                if col in price_cols:
+                    s[col] = s[col] * scale_factor
+
+    # 4. Merge: p values take precedence, scaled s fills the history
     return p.combine_first(s).sort_index()
 
 
@@ -218,7 +238,10 @@ def save_merged_data(
 def average_companies(
     companies: dict[str, pd.DataFrame], components: pd.DataFrame
 ) -> dict[str, pd.DataFrame]:
-
+    """
+    Computes an equal-weighted average of S&P 500 components.
+    Uses return-based averaging for price columns with strict outlier filtering.
+    """
     if not companies:
         print("No company data provided for averaging.")
         return {}
@@ -227,7 +250,7 @@ def average_companies(
         print("No S&P 500 components data provided for filtering.")
         return {}
 
-    # Pre-process components into a time-indexed map for efficient lookup
+    # Pre-process components
     comp_df = components.copy()
     comp_df["date"] = pd.to_datetime(comp_df["date"]).dt.normalize()
     comp_df = comp_df.sort_values("date")
@@ -235,52 +258,118 @@ def average_companies(
     ticker_map = {}
     for _, row in comp_df.iterrows():
         dt = row["date"]
+        # Ensure unique tickers and strip whitespace
         tickers = {t.strip() for t in str(row["tickers"]).split(",") if t.strip()}
         ticker_map[dt] = tickers
 
     comp_dates = sorted(ticker_map.keys())
-
+    price_cols = {"Open", "High", "Low", "Close", "Adj_Close", "Adj Close"}
     result = {}
+
     from bisect import bisect_right
+
+    # Use Adj_Close and Volume for quality filtering
+    adj_col = "Adj_Close" if "Adj_Close" in companies else ("Adj Close" if "Adj Close" in companies else None)
+    vol_col = "Volume" if "Volume" in companies else None
+
+    adj_returns = pd.DataFrame()
+    if adj_col:
+        adj_df = companies[adj_col].copy()
+        if not isinstance(adj_df.index, pd.DatetimeIndex):
+            adj_df.index = pd.to_datetime(adj_df.index)
+        if adj_df.index.tz is not None:
+            adj_df.index = adj_df.index.tz_convert(None)
+        adj_df.index = adj_df.index.normalize()
+
+        # Returns on split-adjusted data
+        adj_returns = adj_df.pct_change()
+
+        # Filter 1: Stricter Outlier Capping (20% is more than enough for S&P 500 daily moves)
+        # Movements > 20% are almost always data errors or unadjusted splits in the source
+        adj_returns = adj_returns.mask(adj_returns.abs() > 0.2, np.nan)
+
+        # Filter 2: Volume Check (ignore returns on days with no trading)
+        if vol_col:
+            vol_df = companies[vol_col].copy()
+            if vol_df.index.tz is not None:
+                vol_df.index = vol_df.index.tz_convert(None)
+            vol_df.index = vol_df.index.normalize()
+            adj_returns = adj_returns.mask(vol_df <= 0, np.nan)
 
     for feature, df in companies.items():
         if df.empty:
             result[feature] = pd.DataFrame()
             continue
 
-        # Normalize df index to match components normalization
         df_clean = df.copy()
         if not isinstance(df_clean.index, pd.DatetimeIndex):
             df_clean.index = pd.to_datetime(df_clean.index)
-
-        # Ensure UTC-naive for normalization and comparison
         if df_clean.index.tz is not None:
-            df_clean.index = df_clean.index.tz_localize(None)
+            df_clean.index = df_clean.index.tz_convert(None)
         df_clean.index = df_clean.index.normalize()
 
-        # Compute the mean for each row individually because the set of
-        # active tickers changes over time.
-        means = []
-        for date, row in df_clean.iterrows():
+        all_columns = set(df_clean.columns)
 
-            # Find the set of S&P 500 tickers active on or before this date
-            idx = bisect_right(comp_dates, date) - 1
-            if idx >= 0:
-                active_sp500 = ticker_map[comp_dates[idx]]
-            else:
-                active_sp500 = set()
+        if feature in price_cols and not adj_returns.empty:
+            avg_returns = []
+            base_price = None
+            first_date = None
 
-            # Intersection of available data columns and active S&P 500 tickers
-            valid_tickers = [t for t in df_clean.columns if t in active_sp500]
+            for date, row in df_clean.iterrows():
+                idx = bisect_right(comp_dates, date) - 1
+                active_sp500 = ticker_map[comp_dates[idx]] if idx >= 0 else set()
+                # Intersect active S&P500 tickers with tickers we actually have data for
+                valid_tickers = [t for t in active_sp500 if t in all_columns]
 
-            if valid_tickers:
-                # Calculate mean for the valid tickers on this date, ignoring NaNs
-                row_mean = row[valid_tickers].mean()
-                means.append(row_mean)
-            else:
-                means.append(np.nan)
+                if valid_tickers:
+                    if base_price is None:
+                        row_vals = row[valid_tickers].dropna()
+                        if not row_vals.empty:
+                            base_price = row_vals.mean()
+                            first_date = date
+                            avg_returns.append(0.0)
+                        else:
+                            avg_returns.append(np.nan)
+                    else:
+                        # Use the pre-filtered adjusted returns
+                        daily_rets = adj_returns.loc[date, valid_tickers]
+                        # We need at least a few tickers to have a meaningful average
+                        if daily_rets.notna().sum() > len(valid_tickers) * 0.1:
+                            avg_ret = daily_rets.mean()
+                            avg_returns.append(avg_ret if pd.notna(avg_ret) else 0.0)
+                        else:
+                            avg_returns.append(0.0)
+                else:
+                    avg_returns.append(np.nan)
 
-        result[feature] = pd.DataFrame(means, index=df_clean.index, columns=[feature])
+            avg_returns_series = pd.Series(avg_returns, index=df_clean.index)
+            valid_mask = avg_returns_series.notna()
+
+            # Reconstruction
+            cum_growth = (1 + avg_returns_series.fillna(0)).cumprod()
+            final_series = cum_growth * (base_price if base_price else 1.0)
+
+            if first_date:
+                final_series.loc[df_clean.index < first_date] = np.nan
+            final_series.loc[~valid_mask] = np.nan
+
+            result[feature] = pd.DataFrame(final_series.values, index=df_clean.index, columns=[feature])
+
+        else:
+            # Simple averaging for non-price columns
+            means = []
+            for date, row in df_clean.iterrows():
+                idx = bisect_right(comp_dates, date) - 1
+                active_sp500 = ticker_map[comp_dates[idx]] if idx >= 0 else set()
+                valid_tickers = [t for t in active_sp500 if t in all_columns]
+
+                if valid_tickers:
+                    row_mean = row[valid_tickers].mean()
+                    means.append(row_mean)
+                else:
+                    means.append(np.nan)
+
+            result[feature] = pd.DataFrame(means, index=df_clean.index, columns=[feature])
 
     return result
 

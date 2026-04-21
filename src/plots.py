@@ -711,6 +711,72 @@ def plot_missing_data_reasons(
     plt.show()
 
 
+def plot_index_comparison(
+    series_dict: dict[str, pd.DataFrame],
+    col: str = "Adj_Close",
+    normalize: bool = True,
+    title: str = "Index vs. Average Component Comparison",
+    save_figures: bool = True,
+    filename: str | None = None,
+) -> pd.DataFrame:
+
+    processed_series = {}
+
+    for label, df in series_dict.items():
+
+        if df.empty:
+            continue
+
+        curr_df = df.copy()
+        if col not in curr_df.columns:
+            # Fallback to the first column if the specified one is missing
+            actual_col = curr_df.columns[0]
+        else:
+            actual_col = col
+
+        # Normalize index to be timezone-naive for plotting
+        if not isinstance(curr_df.index, pd.DatetimeIndex):
+            curr_df.index = pd.to_datetime(curr_df.index)
+        if curr_df.index.tz is not None:
+            curr_df.index = curr_df.index.tz_localize(None)
+        curr_df.index = curr_df.index.normalize()
+
+        series = curr_df[actual_col].groupby(curr_df.index).last().sort_index()
+        processed_series[label] = series
+
+    if not processed_series:
+        raise ValueError("No valid data provided for comparison")
+
+    df_comp = pd.concat(processed_series, axis=1).sort_index()
+
+    # Optional: filter to common date range
+    start_common = df_comp.apply(lambda s: s.first_valid_index()).max()
+    df_comp = df_comp.loc[start_common:]
+
+    if normalize:
+        for label in df_comp.columns:
+            first_val = df_comp[label].loc[df_comp[label].first_valid_index()]
+            df_comp[label] = df_comp[label] / first_val * 100
+        ylabel = "Normalized Value (Start = 100)"
+    else:
+        ylabel = "Price / Value"
+
+    fig, ax = setup_plot(
+        title=title,
+        xlabel="Date",
+        ylabel=ylabel,
+        legend=True,
+    )
+
+    for label in df_comp.columns:
+        ax.plot(df_comp.index, df_comp[label], label=label)
+
+    ax.grid(True, axis='y', alpha=0.3)
+    finalize_plot(fig, ax, save_figures=save_figures, filename=filename)
+
+    return df_comp
+
+
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
