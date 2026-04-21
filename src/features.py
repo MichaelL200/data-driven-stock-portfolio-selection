@@ -174,6 +174,33 @@ def merge_price_data(
     return result
 
 
+def merge_index_data(
+    primary_df: pd.DataFrame,
+    supplemental_df: pd.DataFrame,
+) -> pd.DataFrame:
+
+    if primary_df.empty:
+        return supplemental_df.copy()
+    if supplemental_df.empty:
+        return primary_df.copy()
+
+    def normalize(df):
+        df = df.copy()
+        if not isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index)
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        df.index = df.index.normalize()
+        return df
+
+    p = normalize(primary_df)
+    s = normalize(supplemental_df)
+
+    # combine_first prefers values from 'p' and fills from 's' for
+    # both missing indices (dates) and NaN values.
+    return p.combine_first(s).sort_index()
+
+
 def save_merged_data(
     df: dict[str, pd.DataFrame],
 ) -> None:
