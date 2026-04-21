@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from config import PROCESSED_DATA_DIR
+from config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
 
 
 PROCESSED_DATA_DIR.mkdir(exist_ok=True)
@@ -127,6 +127,65 @@ def construct_hybrid(
         print("cleanup_old is True but no benchmark file was saved or loaded. Skipping cleanup.")
 
     return hybrid_df
+
+
+def merge_price_data(
+    primary_data: dict[str, pd.DataFrame],
+    supplemental_data: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
+
+    all_keys = set(primary_data) | set(supplemental_data)
+    result: dict[str, pd.DataFrame] = {}
+
+    for key in sorted(all_keys):
+        primary_frame = primary_data.get(key, pd.DataFrame())
+        supplemental_frame = supplemental_data.get(key, pd.DataFrame())
+
+        if primary_frame.empty and supplemental_frame.empty:
+            result[key] = pd.DataFrame()
+            continue
+
+        if primary_frame.empty:
+            result[key] = supplemental_frame.copy()
+            continue
+
+        if supplemental_frame.empty:
+            result[key] = primary_frame.copy()
+            continue
+
+        overlapping = primary_frame.columns.intersection(supplemental_frame.columns)
+        supplemental_only = supplemental_frame.columns.difference(primary_frame.columns)
+
+        primary_preferred = primary_frame.copy()
+        if len(overlapping):
+            primary_preferred[overlapping] = primary_frame[overlapping].combine_first(
+                supplemental_frame[overlapping]
+            )
+
+        if len(supplemental_only):
+            merged = pd.concat(
+                [primary_preferred, supplemental_frame[supplemental_only]], axis=1
+            ).sort_index()
+        else:
+            merged = primary_preferred.sort_index()
+
+        result[key] = merged
+
+    return result
+
+
+def save_merged_data(
+    df: dict[str, pd.DataFrame],
+) -> None:
+    output_path = Path(INTERIM_DATA_DIR)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    for col, frame in df.items():
+        if frame.empty or frame.dropna(how="all").empty:
+            continue
+        path = output_path / f"{col}.csv"
+        frame.to_csv(path)
+        print(f"Saved {col}.csv ({len(frame)} rows x {len(frame.columns)} columns)")
 
 
 def main(

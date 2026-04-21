@@ -15,7 +15,7 @@ import yfinance as yf
 import eodhd
 from dotenv import load_dotenv
 
-from config import EXTERNAL_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
+from config import EXTERNAL_DATA_DIR, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
 
 
 _YF_COLUMN_MAP = [
@@ -400,133 +400,133 @@ class EODHD(StockDataSource):
     @staticmethod
     def _resolve_api_symbol(ticker: str) -> str:
 
-        map: dict[str, str] = {
-            "ABI": "BUD_old",
-            "ADCT": "ADCT_old",
-            "ADT": "ADT_old",
-            "AGC": "AGR_old",
-            "ALTR": "ALTR_old",
-            "AM": "AM_old",
-            # "ANDW": "ANDW",
-            "ARC": "ATV1",
-            "ARNC": "ARNC_old",
-            "ASO": "ASO_old",
-            "AT": "AT_old1",
-            "AV": "AV_old",
-            "BBBY": "BBBY_old",
-            "BEAM": "BEAM_old",
-            "BF.B": "BF-A",
-            # "BHGE": "BHGE",
-            "BRK-B": "BRK-A",
-            "BSC": "BSC_old",
-            "BUD": "BUD_old",
-            "CA": "CA_old",
-            "CAM": "CAM_old",
-            "CCE": "CCE_old",
-            "CE": "CZ",
-            "CEG": "CEG_old",
-            "CEN": "CEN1",
-            # "CF": ???,
-            "CHK": "CHK_old",
-            "CHIR": "CHIR1",
-            "CNC": "CCNCW",
-            "CNXT": "CNXT1",
-            "COC.B": "COC-B",
-            "CPWR": "CPWR_old",
-            "CR": "CR_old",
-            "DELL": "DELL_old",
-            "DG": "DG1",
-            "DNB": "DNB_old",
-            "DO": "DO_old",
-            "DOW": "DOW_old",
-            "DTV": "DTV_old",
-            "DYN": "DYN_old",
-            "EC": "EC1",
-            "EMC": "EMC_old",
-            "FB": "FB_old",
-            "FDC": "FDC_old",
-            "FTL.A": "FTL-A",
-            "FOX": "TFCF",
-            # "FRO": ???,
-            "FRX": "FRX_old",
-            "G": "G_old",
-            "GDT": "GDT_old",
-            # "GLD": ???,
-            "GLK": "GLK_old",
-            "GNT": "DNA_old",
-            # "GP": ???,
-            "H": "HSY",
-            "HCA": "HCA1",
-            "HCP": "HCP_old",
-            "HCR": "HCR_old",
-            "HI": "HI1",
-            "HLT": "HLT1",
-            "HM": "HM_old",
-            "HMA": "HMA_old",
-            "HNZ": "HNZ",
-            # "I": ???,
-            "INFO": "INFO_old1",
-            "IR": "TT",
-            "KG": "KG_old",
-            "KMI": "KMI1",
-            "LB": "LB_old",
-            "LIFE": "LIFE_old",
-            "LLL": "LLL_old",
-            "LU": "ALU",
-            # "MDR": "MDR",
-            "MEA": "MEA1",
-            "MEDI": "MEDI_old",
-            "MI": "MI1",
-            "MIL": "MIL_old1",
-            "MIR": "MIR_old",
-            "MNK": "MNK_old",
-            "MON": "MON_old",
-            "NCC": "NCC_old",
-            "NSM": "NSM_old",
-            "NYX": "NYX_old",
-            "ONE": "ONE1",
-            "PCL": "PCL_old",
-            "PCS": "PCS_old",
-            "PD": "PD1",
-            # "PEAK": "PEAK",
-            "PGN": "PGN_old",
-            "PLL": "PLL_old",
-            "POM": "POM_old",
-            "PSFT": "PSFT_old",
-            "PX": "PX_old",
-            "Q": "Q_old",
-            "RAL": "RAL_old",
-            "RDS.A": "RDS-B",
-            "S": "S_old",
-            "SAF": "SAF_old1",
-            "SGP": "SGP_old",
-            "SHLD": "SHLD_old",
-            "SII": "SII_old",
-            "SNDK": "SNDK_old",
-            "SPLS": "SPLS_old",
-            "STI": "STI_old",
-            "SUN": "SUN1",
-            "SUNEQ": "STPFQ",
-            # "SYMC": "SYMC",
-            "TE": "TE_old1",
-            "TEK": "TEK_old",
-            "TMC": "TMC-A",
-            # "TMK": "TMK",
-            "TOS": "TOS_old1",
-            # "TRW": "TRW",
-            "TSG": "TSG1",
-            "TX": "TX1",
-            "UCL": "UCL_old",
-            "UST": "UST1",
-            "WB": "WB_old1",
-            "WLL": "MRCH",
-            # "WLP": "WLP",
-            "WYND": "TNL",
-            "XL": "XL_old",
-        }
+        # map: dict[str, str] = {
+        #     "ABI": "BUD_old",
+        #     "ADCT": "ADCT_old",
+        #     "ADT": "ADT_old",
+        #     "AGC": "AGR_old",
+        #     "ALTR": "ALTR_old",
+        #     "AM": "AM_old",
+        #     # "ANDW": "ANDW",
+        #     "ARC": "ATV1",
+        #     "ARNC": "ARNC_old",
+        #     "ASO": "ASO_old",
+        #     "AT": "AT_old1",
+        #     "AV": "AV_old",
+        #     "BBBY": "BBBY_old",
+        #     "BEAM": "BEAM_old",
+        #     "BF.B": "BF-A",
+        #     # "BHGE": "BHGE",
+        #     "BRK-B": "BRK-A",
+        #     "BSC": "BSC_old",
+        #     "BUD": "BUD_old",
+        #     "CA": "CA_old",
+        #     "CAM": "CAM_old",
+        #     "CCE": "CCE_old",
+        #     "CE": "CZ",
+        #     "CEG": "CEG_old",
+        #     "CEN": "CEN1",
+        #     # "CF": ???,
+        #     "CHK": "CHK_old",
+        #     "CHIR": "CHIR1",
+        #     "CNC": "CCNCW",
+        #     "CNXT": "CNXT1",
+        #     "COC.B": "COC-B",
+        #     "CPWR": "CPWR_old",
+        #     "CR": "CR_old",
+        #     "DELL": "DELL_old",
+        #     "DG": "DG1",
+        #     "DNB": "DNB_old",
+        #     "DO": "DO_old",
+        #     "DOW": "DOW_old",
+        #     "DTV": "DTV_old",
+        #     "DYN": "DYN_old",
+        #     "EC": "EC1",
+        #     "EMC": "EMC_old",
+        #     "FB": "FB_old",
+        #     "FDC": "FDC_old",
+        #     "FTL.A": "FTL-A",
+        #     "FOX": "TFCF",
+        #     # "FRO": ???,
+        #     "FRX": "FRX_old",
+        #     "G": "G_old",
+        #     "GDT": "GDT_old",
+        #     # "GLD": ???,
+        #     "GLK": "GLK_old",
+        #     "GNT": "DNA_old",
+        #     # "GP": ???,
+        #     "H": "HSY",
+        #     "HCA": "HCA1",
+        #     "HCP": "HCP_old",
+        #     "HCR": "HCR_old",
+        #     "HI": "HI1",
+        #     "HLT": "HLT1",
+        #     "HM": "HM_old",
+        #     "HMA": "HMA_old",
+        #     "HNZ": "HNZ",
+        #     # "I": ???,
+        #     "INFO": "INFO_old1",
+        #     "IR": "TT",
+        #     "KG": "KG_old",
+        #     "KMI": "KMI1",
+        #     "LB": "LB_old",
+        #     "LIFE": "LIFE_old",
+        #     "LLL": "LLL_old",
+        #     "LU": "ALU",
+        #     # "MDR": "MDR",
+        #     "MEA": "MEA1",
+        #     "MEDI": "MEDI_old",
+        #     "MI": "MI1",
+        #     "MIL": "MIL_old1",
+        #     "MIR": "MIR_old",
+        #     "MNK": "MNK_old",
+        #     "MON": "MON_old",
+        #     "NCC": "NCC_old",
+        #     "NSM": "NSM_old",
+        #     "NYX": "NYX_old",
+        #     "ONE": "ONE1",
+        #     "PCL": "PCL_old",
+        #     "PCS": "PCS_old",
+        #     "PD": "PD1",
+        #     # "PEAK": "PEAK",
+        #     "PGN": "PGN_old",
+        #     "PLL": "PLL_old",
+        #     "POM": "POM_old",
+        #     "PSFT": "PSFT_old",
+        #     "PX": "PX_old",
+        #     "Q": "Q_old",
+        #     "RAL": "RAL_old",
+        #     "RDS.A": "RDS-B",
+        #     "S": "S_old",
+        #     "SAF": "SAF_old1",
+        #     "SGP": "SGP_old",
+        #     "SHLD": "SHLD_old",
+        #     "SII": "SII_old",
+        #     "SNDK": "SNDK_old",
+        #     "SPLS": "SPLS_old",
+        #     "STI": "STI_old",
+        #     "SUN": "SUN1",
+        #     "SUNEQ": "STPFQ",
+        #     # "SYMC": "SYMC",
+        #     "TE": "TE_old1",
+        #     "TEK": "TEK_old",
+        #     "TMC": "TMC-A",
+        #     # "TMK": "TMK",
+        #     "TOS": "TOS_old1",
+        #     # "TRW": "TRW",
+        #     "TSG": "TSG1",
+        #     "TX": "TX1",
+        #     "UCL": "UCL_old",
+        #     "UST": "UST1",
+        #     "WB": "WB_old1",
+        #     "WLL": "MRCH",
+        #     # "WLP": "WLP",
+        #     "WYND": "TNL",
+        #     "XL": "XL_old",
+        # }
 
-        if ticker in map:
-            ticker = map[ticker]
+        # if ticker in map:
+        #     ticker = map[ticker]
 
         return f"{ticker}.US" if not ticker.endswith(".US") else ticker
 
@@ -646,65 +646,6 @@ class EODHD(StockDataSource):
         except Exception as exc:
             print(f"Failed to download delisted tickers data: {exc}")
             return pd.DataFrame()
-
-
-def merge_price_data(
-    primary_data: dict[str, pd.DataFrame],
-    supplemental_data: dict[str, pd.DataFrame],
-) -> dict[str, pd.DataFrame]:
-
-    all_keys = set(primary_data) | set(supplemental_data)
-    result: dict[str, pd.DataFrame] = {}
-
-    for key in sorted(all_keys):
-        primary_frame = primary_data.get(key, pd.DataFrame())
-        supplemental_frame = supplemental_data.get(key, pd.DataFrame())
-
-        if primary_frame.empty and supplemental_frame.empty:
-            result[key] = pd.DataFrame()
-            continue
-
-        if primary_frame.empty:
-            result[key] = supplemental_frame.copy()
-            continue
-
-        if supplemental_frame.empty:
-            result[key] = primary_frame.copy()
-            continue
-
-        overlapping = primary_frame.columns.intersection(supplemental_frame.columns)
-        supplemental_only = supplemental_frame.columns.difference(primary_frame.columns)
-
-        primary_preferred = primary_frame.copy()
-        if len(overlapping):
-            primary_preferred[overlapping] = primary_frame[overlapping].combine_first(
-                supplemental_frame[overlapping]
-            )
-
-        if len(supplemental_only):
-            merged = pd.concat(
-                [primary_preferred, supplemental_frame[supplemental_only]], axis=1
-            ).sort_index()
-        else:
-            merged = primary_preferred.sort_index()
-
-        result[key] = merged
-
-    return result
-
-
-def save_merged_data(
-    df: dict[str, pd.DataFrame],
-) -> None:
-    output_path = Path(INTERIM_DATA_DIR)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    for col, frame in df.items():
-        if frame.empty or frame.dropna(how="all").empty:
-            continue
-        path = output_path / f"{col}.csv"
-        frame.to_csv(path)
-        print(f"Saved {col}.csv ({len(frame)} rows x {len(frame.columns)} columns)")
 
 
 def main(
