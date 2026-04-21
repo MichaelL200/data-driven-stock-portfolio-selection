@@ -432,6 +432,7 @@ def construct_missing_ticker_2(
     companies_average: dict[str, pd.DataFrame],
     index_data: pd.DataFrame,
     coverage: pd.DataFrame,
+    save_csv: bool = False
 ) -> pd.DataFrame:
 
     if "Adj_Close" not in companies_average:
@@ -483,6 +484,11 @@ def construct_missing_ticker_2(
 
     result = pd.DataFrame({"Adj_Close": missing_prices}, index=combined.index)
     result["Volume"] = 0
+
+    if save_csv:
+        output_path = Path(PROCESSED_DATA_DIR) / "missing_ticker.csv"
+        result.to_csv(output_path)
+        print(f"Saved constructed missing ticker to {output_path}")
 
     return result
 
