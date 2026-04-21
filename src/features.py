@@ -188,6 +188,29 @@ def save_merged_data(
         print(f"Saved {col}.csv ({len(frame)} rows x {len(frame.columns)} columns)")
 
 
+def average_companies(companies: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    """
+    Computes the average across all companies for each feature.
+    """
+    if not companies:
+        print("No company data provided for averaging.")
+        return {}
+
+    result = {}
+    for feature, df in companies.items():
+        if df.empty:
+            result[feature] = pd.DataFrame()
+            continue
+
+        # Calculate mean across columns (axis=1), ignoring NaNs
+        avg_series = df.mean(axis=1)
+
+        # Create a new DataFrame with the same index and a single column named after the feature
+        result[feature] = pd.DataFrame(avg_series, columns=[feature])
+
+    return result
+
+
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
