@@ -188,25 +188,129 @@ def save_merged_data(
         print(f"Saved {col}.csv ({len(frame)} rows x {len(frame.columns)} columns)")
 
 
-def average_companies(companies: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
-    """
-    Computes the average across all companies for each feature.
-    """
+def average_companies(
+    companies: dict[str, pd.DataFrame], components: pd.DataFrame
+) -> dict[str, pd.DataFrame]:
+
     if not companies:
         print("No company data provided for averaging.")
         return {}
 
+    if components.empty:
+        print("No S&P 500 components data provided for filtering.")
+        return {}
+
+    # Pre-process components into a time-indexed map for efficient lookup
+    comp_df = components.copy()
+    comp_df["date"] = pd.to_datetime(comp_df["date"]).dt.normalize()
+    comp_df = comp_df.sort_values("date")
+
+    ticker_map = {}
+    for _, row in comp_df.iterrows():
+        dt = row["date"]
+        tickers = {t.strip() for t in str(row["tickers"]).split(",") if t.strip()}
+        ticker_map[dt] = tickers
+
+    comp_dates = sorted(ticker_map.keys())
+
     result = {}
+    from bisect import bisect_right
+
     for feature, df in companies.items():
         if df.empty:
             result[feature] = pd.DataFrame()
             continue
 
-        # Calculate mean across columns (axis=1), ignoring NaNs
-        avg_series = df.mean(axis=1)
+        # Normalize df index to match components normalization
+        df_clean = df.copy()
+        if not isinstance(df_clean.index, pd.DatetimeIndex):
+            df_clean.index = pd.to_datetime(df_clean.index)
 
-        # Create a new DataFrame with the same index and a single column named after the feature
-        result[feature] = pd.DataFrame(avg_series, columns=[feature])
+        # Ensure UTC-naive for normalization and comparison
+        if df_clean.index.tz is not None:
+            df_clean.index = df_clean.index.tz_localize(None)
+        df_clean.index = df_clean.index.normalize()
+
+        # Compute the mean for each row individually because the set of
+        # active tickers changes over time.
+        means = []
+        for date, row in df_clean.iterrows():
+
+            # Find the set of S&P 500 tickers active on or before this date
+            idx = bisect_right(comp_dates, date) - 1
+            if idx >= 0:
+                active_sp500 = ticker_map[comp_dates[idx]]
+            else:
+                active_sp500 = set()
+
+            # Intersection of available data columns and active S&P 500 tickers
+            valid_tickers = [t for t in df_clean.columns if t in active_sp500]
+
+            if valid_tickers:
+                # Calculate mean for the valid tickers on this date, ignoring NaNs
+                row_mean = row[valid_tickers].mean()
+                means.append(row_mean)
+            else:
+                means.append(np.nan)
+
+        result[feature] = pd.DataFrame(means, index=df_clean.index, columns=[feature])
+
+    return result
+
+
+def construct_missing_ticker(
+    companies_average: dict[str, pd.DataFrame],
+    index_data: pd.DataFrame,
+    coverage: pd.DataFrame,
+) -> pd.DataFrame:
+
+    if "Adj_Close" not in companies_average:
+        raise KeyError("companies_average must contain 'Adj_Close'")
+
+    # 1. Get the observed average returns (delta_r_observed)
+    observed_prices: pd.DataFrame = companies_average["Adj_Close"]
+    observed_returns: pd.DataFrame = observed_prices.pct_change()
+
+    # 2. Get index returns (delta_r_index)
+    price_col = "Adj_Close" if "Adj_Close" in index_data.columns else "Close"
+    if price_col not in index_data.columns:
+        price_col = index_data.columns[0]
+    index_returns: pd.DataFrame = index_data[price_col].pct_change()
+
+    # 3. Get coverage fraction
+    if "coverage_pct" not in coverage.columns:
+        raise KeyError("coverage DataFrame must contain 'coverage_pct' column")
+    coverage_fraction: pd.DataFrame = coverage["coverage_pct"] / 100.0
+
+    # 4. Align all data by creating a combined DataFrame
+    combined = pd.DataFrame({
+            "index_ret": index_returns,
+            "observed_ret": observed_returns.iloc[:, 0],
+            "coverage": coverage_fraction,
+        }
+    ).dropna(subset=["index_ret", "observed_ret", "coverage"])
+
+    # 5. Apply the formula
+    # Handle the 100% coverage case to avoid division by zero
+    mask = combined["coverage"] < 1.0
+    combined["missing_ret"] = np.nan
+    combined.loc[mask, "missing_ret"] = (
+        combined.loc[mask, "index_ret"]
+        - combined.loc[mask, "coverage"] * combined.loc[mask, "observed_ret"]
+    ) / (1 - combined.loc[mask, "coverage"])
+
+    # If coverage is 100%, there is no missing return to compute (set to index_ret or 0)
+    combined.loc[~mask, "missing_ret"] = combined.loc[~mask, "index_ret"]
+
+    # 6. Reconstruct price series from returns
+    # We start with an arbitrary base price of 100.0
+    missing_prices = (1 + combined["missing_ret"].fillna(0)).cumprod() * 100.0
+
+    result = pd.DataFrame(index=combined.index)
+    result["Adj_Close"] = missing_prices
+    for col in ["Open", "High", "Low", "Close"]:
+        result[col] = result["Adj_Close"]
+    result["Volume"] = 0
 
     return result
 
