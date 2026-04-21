@@ -428,6 +428,65 @@ def construct_missing_ticker(
     return result
 
 
+def construct_missing_ticker_2(
+    companies_average: dict[str, pd.DataFrame],
+    index_data: pd.DataFrame,
+    coverage: pd.DataFrame,
+) -> pd.DataFrame:
+
+    if "Adj_Close" not in companies_average:
+        raise KeyError("companies_average must contain 'Adj_Close'")
+    if "coverage_pct" not in coverage.columns:
+        raise KeyError("coverage DataFrame must contain 'coverage_pct' column")
+
+    # 1. Returns of observed (available) companies — equal-weighted average
+    observed_prices = companies_average["Adj_Close"].iloc[:, 0]
+    observed_ret = observed_prices.pct_change()
+
+    # 2. Index returns
+    price_col = "Adj_Close" if "Adj_Close" in index_data.columns else index_data.columns[0]
+    index_ret = index_data[price_col].pct_change()
+
+    # 3. Coverage fraction — reindex to trading calendar, forward-fill monthly data
+    coverage_frac = (
+        coverage["coverage_pct"]
+        .reindex(index_ret.index)
+        .ffill()
+        .bfill()
+        / 100.0
+    )
+
+    # 4. Align on shared dates, drop rows with missing data, exclude full coverage
+    combined = pd.DataFrame({
+        "index_ret": index_ret,
+        "observed_ret": observed_ret,
+        "coverage": coverage_frac,
+    }).dropna()
+    combined = combined[combined["coverage"] < 1.0]
+
+    # 5. Apply the formula where stable (coverage < 95%),
+    # fall back to index_ret where coverage is too high for reliable estimation
+    stable = combined["coverage"] < 0.95
+    combined["missing_ret"] = combined["index_ret"]  # fallback for coverage >= 95%
+    combined.loc[stable, "missing_ret"] = (
+        combined.loc[stable, "index_ret"]
+        - combined.loc[stable, "coverage"] * combined.loc[stable, "observed_ret"]
+    ) / (1 - combined.loc[stable, "coverage"])
+
+    # Before 2000, coverage is low and the index is cap-weighted (SP500TR),
+    # causing the formula to produce unreliable results. Use index_ret directly.
+    pre_2000 = combined.index < "2000-01-01"
+    combined.loc[pre_2000, "missing_ret"] = combined.loc[pre_2000, "index_ret"]
+
+    # 6. Reconstruct price series (base = 100)
+    missing_prices = (1 + combined["missing_ret"]).cumprod() * 100.0
+
+    result = pd.DataFrame({"Adj_Close": missing_prices}, index=combined.index)
+    result["Volume"] = 0
+
+    return result
+
+
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
