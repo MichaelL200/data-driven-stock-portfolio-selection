@@ -11,8 +11,8 @@ This document lists all tickers with missing data periods for each data source, 
 | Data Source | Count |
 |-------------|------:|
 | Yahoo Finance | 242 |
-| EODHD | 297 |
-| Total | 539 |
+| EODHD | 261 |
+| Total | 503 |
 
 ---
 
@@ -333,16 +333,16 @@ These tickers show many non-contiguous isolated missing days or short blocks sca
 
 | Metric | Count |
 |--------|------:|
-| Total missing tickers | 297 |
+| Total missing tickers | 261 |
 
 #### Reason Breakdown
 
 | Category | Count | % Source |
 |----------|------:|---------:|
-| Company Acquired / Merged | 131 | 44.11% |
-| Insufficient Historical Data | 115 | 38.72% |
-| Not Downloaded | 43 | 14.48% |
-| Patchy / Fragmented Data | 8 | 2.69% |
+| Company Acquired / Merged | 98 | 37.55% |
+| Insufficient Historical Data | 115 | 44.06% |
+| Not Downloaded | 41 | 15.71% |
+| Patchy / Fragmented Data | 7 | 2.68% |
 
 ### 1. Company Acquired / Merged — Ticker Retired
 
@@ -368,104 +368,71 @@ The company was bought out, merged, or taken private. The ticker ceased trading 
 | BSC | 1998-07-01 → 2008-03-14 | Bear Stearns; acquired by JPMorgan Chase |
 | BUD | 1996-01-02 → 2008-11-17 | Anheuser-Busch; acquired by InBev |
 | CA | 1996-01-02 → 2018-10-31 | CA Technologies; acquired by Broadcom |
-| CAM | 2008-01-29 → 2016-03-31 | Cameron International; acquired by Schlumberger |
 | CCE | 1998-10-08 → 2003-09-08 (multiple annual blocks) | Coca-Cola Enterprises; EODHD has fragmentary annual-report-based blocks for this period |
 | CE | 2001-04-02 → 2004-02-26 | Celanese; IPO / backfill gap |
 | CEG | 1996-01-02 → 2012-03-02 | Constellation Energy; acquired by Exelon |
 | CEN | 1996-01-02 → 2001-03-30 | Ceridian old entity; acquired |
 | CF | 2000-06-19 → 2004-08-26 | CF Industries; pre-IPO / limited backfill |
-| CHK | 2006-03-03 → 2015-12-31 | Chesapeake Energy; data gap; company later filed for bankruptcy |
-| CHIR | 2000-11-24 → 2006-04-19 | Chiron; acquired by Novartis |
 | CNC | 1997-01-15 → 2001-12-06 | Centene predecessor; restructured |
-| CNXT | 2000-01-31 → 2002-06-19 | Conexant Systems; restructured |
 | CPWR | 1999-01-04 → 2006-12-01 | Compuware; taken private |
 | CR | 1996-01-02 → 2004-12-16 | Crane Co.; early coverage gap |
 | DELL | 1996-09-06 → 2013-10-18 | Dell; taken private |
-| DG | 1998-07-16 → 2007-07-06 | Dollar General; taken private, then relisted |
-| DNB | 2008-12-02 → 2017-04-04 | Dun & Bradstreet; taken private, later relisted |
 | DO | 2009-02-26 → 2016-09-28 | Diamond Offshore; later filed for bankruptcy |
 | DOW | 1996-01-02 → 2017-08-31 | Dow Chemical; merged with DuPont |
-| DTV | 2006-12-04 → 2015-07-23 | DirecTV; acquired by AT&T |
 | DYN | 2000-10-03 → 2009-12-17 | Dynegy; restructured and filed for bankruptcy |
 | EC | 1996-01-02 → 2006-06-05 | Engelhard; acquired by BASF |
 | EMC | 1996-03-28 → 2016-09-06 | EMC Corporation; acquired by Dell |
-| FB | 2013-12-23 → 2022-06-08 | Facebook; renamed Meta Platforms |
 | FDC | 1996-01-02 → 2007-09-24 | First Data; taken private by KKR |
 | FOX / FOXA | 2004-12-20 → 2019-02-27 | 21st Century Fox; acquired by Walt Disney |
 | FRO | 1997-01-02 → 1999-09-21 | Frontline; ADR coverage gap in early listing period |
-| FRX | 2000-11-22 → 2014-06-24 | Forest Laboratories; acquired by Actavis |
 | G | 1996-01-02 → 2005-09-28 | Gillette; acquired by Procter & Gamble |
 | GDT | 1996-12-19 → 2006-04-21 | Guidant; acquired by Boston Scientific |
 | GLD | 1996-01-02 → 1997-04-29 | Glidden Co.; acquired |
 | GLK | 1996-01-02 → 2004-01-28 | Great Lakes Chemical; acquired |
 | GNT | 1996-03-13 → 1998-06-30 | Genentech; partial period before full acquisition by Roche |
 | GP | 1996-01-02 → 2005-12-16 | Georgia-Pacific; taken private by Koch Industries |
-| H | 1996-01-02 → 2007-04-05 (two blocks) | Hershey / Hyatt predecessor; restructured |
 | HCA | 1996-01-02 → 2006-11-17 | Hospital Corporation of America; taken private, later relisted |
-| HCP | 2008-03-31 → 2019-10-18 | HCP Inc.; renamed Healthpeak Properties (PEAK) |
 | HCR | 1998-09-28 → 2007-11-05 | HCR ManorCare; taken private |
 | HI | 1996-01-02 → 2003-03-28 | Household International; acquired by HSBC |
 | HLT | 1996-01-02 → 2007-10-24 | Hilton Hotels; taken private by Blackstone |
 | HM | 1996-01-02 → 2001-12-14 | Homestake Mining; acquired by Barrick Gold |
-| HMA | 2001-11-07 → 2007-02-26 | Health Management Associates; acquired |
 | HNZ | 1996-01-02 → 2003-09-08 | H.J. Heinz; taken private (shorter gap than Yahoo) |
 | I | 1996-01-02 → 1996-03-29 | Inco Ltd.; acquired by Vale |
-| INFO | 2017-06-02 → 2022-02-17 | IHS Markit; acquired by S&P Global |
-| IR | 1996-01-02 → 2009-06-30 & 2010-11-17 → 2017-05-03 | Ingersoll Rand; spun off climate segment (Trane Technologies) |
-| KG | 2000-10-03 → 2008-04-28 | King Pharmaceuticals; acquired by Pfizer |
-| KMI | 2000-12-12 → 2007-05-24 | Kinder Morgan; taken private, later relisted |
 | LB | 1996-01-02 → 2021-07-21 | L Brands; renamed Bath & Body Works |
 | LIFE | 2008-11-24 → 2014-01-22 | Life Technologies; acquired by Thermo Fisher Scientific |
-| LLL | 2004-12-01 → 2019-06-07 | L3 Technologies; merged with Harris to form L3Harris |
 | LU | 1996-10-01 → 2006-11-22 | Lucent Technologies; merged with Alcatel |
 | MDR | 1996-01-02 → 2003-08-18 | McDermott International; restructured |
 | MEA | 1996-01-02 → 2002-01-28 | Mead Corporation; merged with Westvaco |
-| MEDI | 2000-06-16 → 2007-05-31 | MedImmune; acquired by AstraZeneca |
 | MI | 2002-02-11 → 2011-07-05 | Marshall & Ilsley; acquired by BMO Financial |
 | MIL | 1996-01-02 → 2003-09-08 | Millipore; acquired by Merck KGaA |
 | MIR | 1997-08-07 → 2003-07-16 (two blocks) | Mirant; restructured and renamed |
-| MNK | 2014-08-19 → 2017-07-25 | Mallinckrodt; later filed for bankruptcy |
-| MON | 2002-08-14 → 2015-12-31 | Monsanto; acquired by Bayer |
 | NCC | 1996-01-02 → 2008-12-29 | National City Corp; acquired by PNC Financial |
 | NSM | 1996-01-02 → 2011-09-21 | National Semiconductor; acquired by Texas Instruments |
-| NYX | 2007-10-25 → 2013-11-07 (+ 2 isolated days 2010) | NYSE Euronext; acquired by ICE |
 | ONE | 1996-01-02 → 2003-09-30 | Bank One; acquired by JPMorgan Chase |
-| PCL | 2002-01-17 → 2016-02-16 | Plum Creek Timber; acquired by Weyerhaeuser |
 | PCS | 1998-11-24 → 2004-04-19 | Sprint PCS; merged with Sprint |
 | PD | 1996-01-02 → 2007-03-16 | Phelps Dodge; acquired by Freeport-McMoRan |
 | PEAK | 2019-11-05 → 2024-02-01 | Healthpeak Properties; renamed from HCP |
 | PGN | 1996-01-02 → 2012-06-29 | Progress Energy; acquired by Duke Energy |
 | PLL | 1996-01-02 → 2015-08-25 | Pall Corporation; acquired by Danaher |
-| POM | 2007-11-09 → 2016-03-18 | Pepco Holdings; acquired by Exelon |
-| PSFT | 1998-10-02 → 2004-12-27 | PeopleSoft; acquired by Oracle |
 | PX | 1996-01-02 → 2018-10-25 | Praxair; merged with Linde |
-| Q | 2000-07-06 → 2011-03-23 | Qwest Communications; acquired by CenturyLink |
 | RAL | 1996-01-02 → 2001-12-06 | Ralston Purina; acquired by Nestlé |
 | S | 1996-01-02 → 2013-07-02 | Sprint; acquired by T-Mobile |
 | SAF | 1996-01-02 → 2008-09-22 | Safeco; acquired by Liberty Mutual |
 | SGP | 1996-01-02 → 2009-10-29 | Schering-Plough; acquired by Merck |
-| SHLD | 2005-03-28 → 2012-08-23 | Sears Holdings; later filed for bankruptcy |
-| SII | 2006-10-02 → 2010-02-19 | Smith International; acquired by Schlumberger |
-| SNDK | 2006-04-20 → 2016-05-11 | SanDisk; acquired by Western Digital |
-| SPLS | 1998-10-07 → 2017-09-12 | Staples; taken private |
 | STI | 1996-01-02 → 2019-12-05 | SunTrust Banks; merged with BB&T to form Truist |
 | SUN | 1996-01-02 → 2012-09-13 | Sunoco; acquired by Energy Transfer |
-| SUNEQ | 2007-05-31 → 2011-12-14 | Suntech Power; bankruptcy |
 | SYMC | 2003-03-31 → 2003-09-08 | Symantec; short gap around restructuring |
-| TE | 2001-10-10 → 2016-06-27 | TECO Energy; acquired by Emera |
 | TEK | 1996-01-02 → 2007-11-13 | Tektronix; acquired by Danaher |
 | TMC | 1996-01-02 → 2000-06-09 | Times Mirror; acquired by Tribune |
 | TMK | 1996-01-02 → 2003-09-08 | Torchmark; renamed Globe Life |
 | TOS | 1999-09-20 → 2001-09-10 | Tosco Corporation; acquired by Phillips Petroleum |
 | TRW | 1996-01-02 → 2002-12-09 | TRW Inc.; acquired by Northrop Grumman |
-| TSG | 2000-03-16 → 2007-03-30 | Sabre Holdings; taken private |
 | TX | 1996-01-02 → 2001-10-04 | Texaco; acquired by Chevron |
 | UCL | 1996-01-02 → 2005-08-10 | Unocal; acquired by Chevron |
 | UST | 1996-01-02 → 2009-01-05 | UST Inc.; acquired by Altria |
 | WB | 1996-01-02 → 2008-12-29 | Wachovia; acquired by Wells Fargo |
 | WLL | 1996-01-02 → 2002-02-07 | Whittman-Hart / MarchFirst; bankruptcy |
 | WLP | 1999-06-09 → 2004-11-26 | WellPoint; renamed Anthem |
-| WYND | 2006-08-01 → 2018-05-24 | Wyndham; spun off and renamed |
 | XL | 2001-09-04 → 2015-12-31 | XL Capital; acquired by AXA |
 
 ---
@@ -489,7 +456,6 @@ EODHD explicitly flags these as `not downloaded`. The data was never retrieved f
 | CDAY | 2021-09-20 → 2023-10-18 | Ceridian; not downloaded during rename/transition period |
 | CIT.A | 2000-07-17 → 2001-05-31 | CIT Group dual-class share; not in standard EODHD coverage |
 | CMB | 1996-01-02 → 1996-03-29 | Chase Manhattan Bank predecessor; very early, not fetched |
-| COC.B | 1999-08-09 → 2002-08-29 | Corus Bankshares dual-class share; not downloaded |
 | CYR | 1996-01-02 → 1996-03-25 | Cyrk International; not in EODHD database |
 | DWD | 1996-01-02 → 1997-05-30 | Dun & Bradstreet old ticker; not fetched |
 | FBO | 1996-01-02 → 1996-03-12 | FBR & Co. predecessor; very early, not downloaded |
@@ -509,7 +475,6 @@ EODHD explicitly flags these as `not downloaded`. The data was never retrieved f
 | NYN | 1996-01-02 → 1997-08-14 | NYNEX; not downloaded — acquired by Bell Atlantic |
 | PEL | 1996-01-02 → 1997-06-18 | Pelican Financial (early period); not fetched |
 | RE | 2017-06-19 → 2023-06-20 | Everest Re Group; not downloaded in this period |
-| RDS.A | 1996-01-02 → 2002-07-18 | Royal Dutch Shell A-share ADR; not in standard EODHD US coverage |
 | RSHCQ | 1996-01-02 → 2011-06-30 | RadioShack bankruptcy OTC; outside standard coverage |
 | SHN | 1996-01-02 → 1996-12-27 | Shoney's; very early period not fetched |
 | TDM | 1996-01-02 → 1997-08-26 | Tandem Computers; acquired by Compaq — not fetched |
@@ -660,7 +625,6 @@ A small number of tickers exhibit many non-contiguous isolated missing days rath
 | CSR | 1996-01-02 → 2000-06-01 (many isolated gaps) | CSR plc; Australian company cross-listed on US markets — EODHD has irregular coverage for this foreign issuer |
 | DIGI | 1996-01-02 → 1998-08-17 (multiple short blocks) | Digi International; fragmented EODHD coverage across early period |
 | MCIC | 1996-01-02 → 1997-09-16 (two segments + isolated day) | MCI Communications; fragmented early data |
-| NYX | 2007-10-25 → 2013-11-07 (+ 2 isolated gaps in 2010) | NYSE Euronext; mostly contiguous gap with two stray missing days |
 | SNT | isolated days in 1996–1999 | Sonat Inc.; very sparse individual missing trading days |
 | SVU | isolated days in 1996–1997 | SUPERVALU; three scattered missing trading days |
 
@@ -674,10 +638,10 @@ A small number of tickers exhibit many non-contiguous isolated missing days rath
     "Patchy / Fragmented Data": 8
   },
   "EODHD": {
-    "Company Acquired / Merged": 131,
-    "Not Downloaded": 43,
+    "Company Acquired / Merged": 98,
+    "Not Downloaded": 41,
     "Insufficient Historical Data": 115,
-    "Patchy / Fragmented Data": 8
+    "Patchy / Fragmented Data": 7
   }
 }
 -->
