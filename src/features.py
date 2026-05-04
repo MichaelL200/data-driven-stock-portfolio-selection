@@ -235,6 +235,28 @@ def save_merged_data(
         print(f"Saved {col}.csv ({len(frame)} rows x {len(frame.columns)} columns)")
 
 
+def load_merged_data() -> dict[str, pd.DataFrame]:
+
+    interim_path = Path(INTERIM_DATA_DIR)
+    merged_data: dict[str, pd.DataFrame] = {}
+
+    if not interim_path.exists():
+        print(f"No merged data found in {interim_path}")
+        return merged_data
+
+    for csv_file in interim_path.glob("*.csv"):
+        col_name = csv_file.stem
+        data = pd.read_csv(csv_file, index_col=0, parse_dates=True)
+        merged_data[col_name] = data
+
+    if merged_data:
+        print(f"Loaded merged data with {len(merged_data)} price fields")
+    else:
+        print(f"No merged data found in {interim_path}")
+
+    return merged_data
+
+
 def average_companies(
     companies: dict[str, pd.DataFrame], components: pd.DataFrame
 ) -> dict[str, pd.DataFrame]:
