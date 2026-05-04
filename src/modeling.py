@@ -8,8 +8,8 @@ from config import RANDOM_SEED
 def select_random(
         components: pd.DataFrame,
         n: int,
-        date: str | datetime = None,
         coverage: pd.DataFrame = None,
+        date: str | datetime = None,
         seed: int = RANDOM_SEED
 ) -> dict:
 
@@ -57,3 +57,41 @@ def select_random(
         'tickers': selected_tickers,
         'difference': difference
     }
+
+
+def select_random_periodic(
+        components: pd.DataFrame,
+        n: int,
+        start_date: str | datetime,
+        frequency: str,
+        coverage: pd.DataFrame = None,
+        seed: int = RANDOM_SEED
+) -> pd.DataFrame:
+
+    if seed is not None:
+        random.seed(seed)
+
+    components = components.copy()
+    components["date"] = pd.to_datetime(components["date"])
+    max_date = components["date"].max()
+    start_date = pd.to_datetime(start_date)
+
+    freq_map = {
+        'monthly': pd.DateOffset(months=1),
+        'quarterly': pd.DateOffset(months=3),
+        'yearly': pd.DateOffset(years=1)
+    }
+    freq = freq_map.get(frequency.lower(), frequency)
+
+    dates = pd.date_range(start=start_date, end=max_date, freq=freq)
+
+    results = []
+    for date in dates:
+        res = select_random(components, n, coverage, date, seed=seed)
+        results.append({
+            'date': date,
+            'tickers': res['tickers'],
+            'difference': res['difference']
+        })
+
+    return pd.DataFrame(results)
