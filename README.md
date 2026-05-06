@@ -113,11 +113,14 @@ In some cases, the project may serve as a tool or library. For these types of re
     │
     ├── features.py             <- Code to create features for modeling
     │
-    ├── modeling
+    ├── modeling.py             <- Code for modeling
+    │
+    <!-- ├── modeling
     │   ├── __init__.py
     │   ├── predict.py          <- Code to run model inference with trained models
     │   └── train.py            <- Code to train models
-    │
+    │ -->
     ├── plots.py                <- Code to create visualizations
+    |
     └── sp500                   <- Submodule to get S&P 500 components
 ```
