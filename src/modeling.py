@@ -101,6 +101,132 @@ def select_random_periodic(
     return pd.DataFrame(results)
 
 
+def select_monte_carlo_periodic(
+        components: pd.DataFrame,
+        price_data: dict[str, pd.DataFrame],
+        n: int,
+        start_date: str | datetime,
+        frequency: str,
+        lookback_days: int = 252,
+        n_trials: int = 500,
+        min_obs: int = 60,
+        price_col: str = "Adj_Close",
+        max_abs_return: float | None = 2.0,
+        coverage: pd.DataFrame = None,
+        seed: int = RANDOM_SEED
+) -> pd.DataFrame:
+
+    if price_col not in price_data:
+        raise KeyError(f"Price column '{price_col}' not found in price_data")
+
+    rng = random.Random(seed) if seed is not None else random
+
+    components = components.copy()
+    components["date"] = pd.to_datetime(components["date"])
+    max_date = components["date"].max()
+    start_date = pd.to_datetime(start_date)
+
+    prices = price_data[price_col].copy()
+    if not isinstance(prices.index, pd.DatetimeIndex):
+        prices.index = pd.to_datetime(prices.index)
+    if prices.index.tz is not None:
+        prices.index = prices.index.tz_localize(None)
+    prices.index = prices.index.normalize()
+
+    returns = prices.where(lambda df: df > 0).pct_change().replace([np.inf, -np.inf], np.nan)
+    if max_abs_return is not None:
+        returns = returns.mask(returns.abs() > max_abs_return)
+
+    freq_map = {
+        'monthly': pd.DateOffset(months=1),
+        'quarterly': pd.DateOffset(months=3),
+        'yearly': pd.DateOffset(years=1)
+    }
+    freq = freq_map.get(frequency.lower(), frequency)
+    dates = pd.date_range(start=start_date, end=max_date, freq=freq)
+
+    results = []
+    for date in dates:
+        target_date = pd.to_datetime(date).normalize()
+        available_dates = components[components["date"] <= target_date]
+        if available_dates.empty:
+            continue
+
+        row = available_dates.sort_values("date").iloc[-1]
+        tickers_str = row["tickers"]
+        tickers = [t.strip() for t in tickers_str.split(",") if t.strip()]
+        valid_tickers = [t for t in tickers if t in returns.columns]
+
+        if not valid_tickers:
+            continue
+
+        available_price_dates = prices.index[prices.index <= target_date]
+        if len(available_price_dates) == 0:
+            continue
+
+        window_end = available_price_dates.max()
+        window = returns.loc[:window_end, valid_tickers].tail(lookback_days)
+        counts = window.count()
+        valid_tickers = [t for t in valid_tickers if counts.get(t, 0) >= min_obs]
+
+        if not valid_tickers:
+            continue
+
+        means = window[valid_tickers].mean(skipna=True)
+        stds = window[valid_tickers].std(skipna=True)
+
+        requested_n = n
+        selected_tickers = None
+        best_score = -np.inf
+
+        if len(valid_tickers) <= n or n_trials <= 1:
+            selected_tickers = valid_tickers
+            mean_ret = means.mean()
+            vol = stds.mean()
+            score = mean_ret / vol if pd.notna(vol) and vol != 0 else np.nan
+        else:
+            for _ in range(n_trials):
+                sample = rng.sample(valid_tickers, n)
+                mean_ret = means[sample].mean()
+                vol = stds[sample].mean()
+                if pd.isna(vol) or vol == 0:
+                    score = -np.inf
+                else:
+                    score = mean_ret / vol
+                if score > best_score:
+                    best_score = score
+                    selected_tickers = sample
+            score = best_score if best_score != -np.inf else np.nan
+
+        if selected_tickers is None:
+            selected_tickers = rng.sample(valid_tickers, min(n, len(valid_tickers)))
+            score = np.nan
+
+        coverage_pct = None
+        if coverage is not None:
+            coverage_index = coverage.index
+            if not isinstance(coverage_index, pd.DatetimeIndex):
+                coverage_index = pd.to_datetime(coverage_index)
+            available_coverage = coverage_index[coverage_index <= target_date]
+            if not available_coverage.empty:
+                nearest_coverage_date = available_coverage.max()
+                coverage_pct = coverage.loc[nearest_coverage_date, "coverage_pct"]
+
+        if coverage_pct is not None:
+            difference = max(0, round(requested_n * (1 - coverage_pct / 100)))
+        else:
+            difference = max(0, requested_n - len(selected_tickers))
+
+        results.append({
+            'date': target_date,
+            'tickers': selected_tickers,
+            'difference': difference,
+            'score': score
+        })
+
+    return pd.DataFrame(results)
+
+
 def backtest_portfolio(
     selected_companies: pd.DataFrame,
     price_data: dict[str, pd.DataFrame],
