@@ -177,30 +177,30 @@ def select_monte_carlo_periodic(
 
         requested_n = n
         selected_tickers = None
-        best_score = -np.inf
+        best_sharpe_ratio = -np.inf
 
         if len(valid_tickers) <= n or n_trials <= 1:
             selected_tickers = valid_tickers
             mean_ret = means.mean()
             vol = stds.mean()
-            score = mean_ret / vol if pd.notna(vol) and vol != 0 else np.nan
+            sharpe_ratio = mean_ret / vol if pd.notna(vol) and vol != 0 else np.nan
         else:
             for _ in range(n_trials):
                 sample = rng.sample(valid_tickers, n)
                 mean_ret = means[sample].mean()
                 vol = stds[sample].mean()
                 if pd.isna(vol) or vol == 0:
-                    score = -np.inf
+                    sharpe_ratio = -np.inf
                 else:
-                    score = mean_ret / vol
-                if score > best_score:
-                    best_score = score
+                    sharpe_ratio = mean_ret / vol
+                if sharpe_ratio > best_sharpe_ratio:
+                    best_sharpe_ratio = sharpe_ratio
                     selected_tickers = sample
-            score = best_score if best_score != -np.inf else np.nan
+            sharpe_ratio = best_sharpe_ratio if best_sharpe_ratio != -np.inf else np.nan
 
         if selected_tickers is None:
             selected_tickers = rng.sample(valid_tickers, min(n, len(valid_tickers)))
-            score = np.nan
+            sharpe_ratio = np.nan
 
         coverage_pct = None
         if coverage is not None:
@@ -221,7 +221,7 @@ def select_monte_carlo_periodic(
             'date': target_date,
             'tickers': selected_tickers,
             'difference': difference,
-            'score': score
+            'sharpe_ratio': sharpe_ratio
         })
 
     return pd.DataFrame(results)
