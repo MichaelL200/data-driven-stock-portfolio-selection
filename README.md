@@ -3,7 +3,7 @@
 ### Author: Michał Ludwiczak
 
 ## Overview
-This repository implements a system for stock portfolio selection and optimization. The project leverages Monte Carlo simulations, technical analysis and machine learning techniques to identify and optimize investment strategies. It was developed as part of the Individual Project course in the 4th semester.
+This repository implements a system for stock portfolio selection and optimization - the project leverages Monte Carlo simulations. <!-- , technical analysis and machine learning techniques to identify and optimize investment strategies. --> It was developed as part of the Individual Project course in the 4th semester.
 
 <!-- ## Features/Functionalities
 Key points of what exacly users can do or achive from our repository.
