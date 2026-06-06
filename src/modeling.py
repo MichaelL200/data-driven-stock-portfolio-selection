@@ -490,3 +490,76 @@ def backtest_portfolio(
         portfolio_df[price_col] = (portfolio_df[price_col] / portfolio_df[price_col].iloc[0]) * initial_value
 
     return portfolio_df
+
+
+def calculate_sharpe_ratios(
+    strategies: dict[str, pd.DataFrame | pd.Series] | None = None,
+    *,
+    value_col: str = "Adj_Close",
+    risk_free_rate: float = 0.0,
+    annualization_factor: float = 252.0,
+    **named_strategies: pd.DataFrame | pd.Series
+) -> pd.DataFrame:
+
+    combined_strategies: dict[str, pd.DataFrame | pd.Series] = {}
+    if strategies is not None:
+        combined_strategies.update(strategies)
+    combined_strategies.update(named_strategies)
+
+    if not combined_strategies:
+        raise ValueError("At least one strategy must be provided")
+
+    if annualization_factor <= 0:
+        raise ValueError("annualization_factor must be greater than 0")
+
+    period_risk_free_rate = (1 + risk_free_rate) ** (1 / annualization_factor) - 1 if risk_free_rate else 0.0
+
+    aligned_strategies: dict[str, pd.Series] = {}
+    common_index: pd.DatetimeIndex | None = None
+
+    for strategy_name, strategy_data in combined_strategies.items():
+        if isinstance(strategy_data, pd.DataFrame):
+            if value_col not in strategy_data.columns:
+                raise KeyError(f"Column '{value_col}' not found in strategy '{strategy_name}'")
+            values = strategy_data[value_col]
+        elif isinstance(strategy_data, pd.Series):
+            values = strategy_data
+        else:
+            raise TypeError(
+                f"Strategy '{strategy_name}' must be a pandas DataFrame or Series, got {type(strategy_data).__name__}"
+            )
+
+        values = pd.Series(values).dropna()
+        if not isinstance(values.index, pd.DatetimeIndex):
+            values.index = pd.to_datetime(values.index)
+        if values.index.tz is not None:
+            values.index = values.index.tz_localize(None)
+        values.index = values.index.normalize()
+
+        aligned_strategies[strategy_name] = values.sort_index()
+        common_index = values.index if common_index is None else common_index.intersection(values.index)
+
+    if common_index is None or common_index.empty:
+        raise ValueError("No common date range found across the provided strategies")
+
+    results = []
+    for strategy_name, values in aligned_strategies.items():
+        common_values = values.reindex(common_index).dropna()
+        returns = common_values.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
+
+        if returns.empty:
+            sharpe_ratio = np.nan
+        else:
+            excess_returns = returns - period_risk_free_rate
+            volatility = excess_returns.std()
+            if pd.isna(volatility) or volatility == 0:
+                sharpe_ratio = np.nan
+            else:
+                sharpe_ratio = np.sqrt(annualization_factor) * excess_returns.mean() / volatility
+
+        results.append({
+            "strategy": strategy_name,
+            "sharpe_ratio": sharpe_ratio
+        })
+
+    return pd.DataFrame(results).sort_values("sharpe_ratio", ascending=False, na_position="last").reset_index(drop=True)
