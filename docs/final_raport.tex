@@ -609,18 +609,18 @@ W szerszym zestawieniu najwyższy współczynnik Sharpe'a osiąga roczna strateg
 
 Projekt składał się z \textbf{dwóch głównych etapów} — utworzenia zbioru danych oraz opracowania i przetestowania strategii inwestycyjnych. Pierwszy z nich okazał się znacznie bardziej czasochłonny i złożony, ale jednocześnie kluczowy dla całego przedsięwzięcia, ponieważ bez odpowiedniej jakości danych wyniki strategii byłyby mało reprezentatywne. \textbf{Trudność} tego etapu wynikała z faktu, że żadne z wykorzystanych źródeł nie zapewniało pełnego pokrycia danych, a w przypadku serwisu EODHD zwiększanie pokrycia dla brakujących tickerów wymagało analizowania historii spółek i ręcznego mapowania ich oznaczeń.
 
-Pomimo że celem projektu nie było pokonanie benchmarku (Sharpe \textasciitilde{}0{,}56), udało się to osiągnąć w przypadku dwóch utworzonych strategii:
+Pomimo że celem projektu nie było pokonanie benchmarku (Sharpe $S \approx 0{,}56$), udało się to osiągnąć w przypadku dwóch utworzonych strategii:
 
 \begin{enumerate}
-    \item Strategii najwyższych współczynników Sharpe’a przy doborze rocznym (Sharpe \textasciitilde{}0{,}65),
-    \item Strategii Monte Carlo na portfelach przy doborze kwartalnym (Sharpe \textasciitilde{}0{,}63).
+    \item Strategii najwyższych współczynników Sharpe’a przy doborze rocznym (Sharpe $S \approx 0{,}65$),
+    \item Strategii Monte Carlo na portfelach przy doborze kwartalnym (Sharpe $S \approx 0{,}63$).
 \end{enumerate}
 
 Rezultaty te nie gwarantują jednak, że strategie przynosiłyby lepsze wyniki niż inwestowanie w szeroki indeks akcji, np. indeks S\&P 500, z kilku powodów:
 
 \begin{enumerate}
     \item Najbardziej fundamentalny z nich dotyczy \textbf{jakości danych}. Dane pobrane z obu serwisów nie mają pełnego pokrycia, co wprowadza błąd wyprzedzania, a próby jego ograniczenia również obarczone są niepewnością. Dodatkowo w utworzonym zbiorze danych mogą występować błędy wynikające ze sklejenia szeregów czasowych z dwóch źródeł, nieuwzględnienia splitów i scaleń akcji lub niejednolitego pokrycia danych w czasie. W przypadku nietypowych, skrajnych dziennych zmian cen, będących oczywistymi błędami danych, ich wpływ nie był uwzględniany podczas testowania stóp zwrotu portfeli.
-    \item Fakt, że kwartalna \textbf{strategia losowa} dawała lepsze zwroty niż benchmark jest sygnałem ostrzegawczym.
+    \item Fakt, że kwartalna \textbf{strategia losowa} daje lepsze zwroty niż benchmark jest sygnałem ostrzegawczym.
     \item Nawet przy założeniu braku wpływu dwóch powyższych czynników, historyczne wyniki strategii nie gwarantują podobnych rezultatów w przyszłości. \textbf{Przeszłe stopy zwrotu nie stanowią gwarancji przyszłych wyników}, a rynek finansowy podlega ciągłym zmianom.
 \end{enumerate}
 
