@@ -5,10 +5,14 @@
 \usepackage[T1]{fontenc}
 \usepackage[polish]{babel}
 
+% Packages for math and technical symbols
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
 % Packages to handle graphics and figures
 \usepackage{graphicx}
 \usepackage{float} % Enables to use [H] for exact figure placement
-\usepackage{enumitem} % Allows to resume numbered lists
 \usepackage{svg} % Allows to include SVG images directly
 \usepackage{svg-extract} % Required to use the extractpath option in svgsetup
 \svgsetup{
@@ -22,6 +26,35 @@
     colorlinks=true,
     linkcolor=black, % color of internal links
     urlcolor=blue    % color of URL links
+}
+
+% Package for code snippets
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{pythonstyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    language=Python
 }
 
 \title{Raport Końcowy \\ \large Selekcja i optymalizacja portfela spółek giełdowych z wykorzystaniem symulacji Monte Carlo}
@@ -56,7 +89,7 @@ Indeks jest również odpowiednio zdywersyfikowany – spółki należą do ró�
     \label{fig:sp500_sectors}
 \end{figure}
 
-Największe 7 spółek w indeksie S\&P 500 są określane jako Wspaniała Siódemka (The Magnificent Seven). Ich znaczący udział w kapitalizacji indeksu sprawia, że mają one nieproporcjonalnie duży wpływ na jego wyniki, co przedstawiono na rysunku~\ref{fig:sp500_mag7}.
+Największe 7 spółek w indeksie S\&P 500 are określane jako Wspaniała Siódemka (The Magnificent Seven). Ich znaczący udział w kapitalizacji indeksu sprawia, że mają one nieproporcjonalnie duży wpływ na jego wyniki, co przedstawiono na rysunku~\ref{fig:sp500_mag7}.
 
 \begin{figure}[H]
     \centering
@@ -162,7 +195,7 @@ Aktualny skład indeksu jest pozyskiwany z \textbf{Wikipedii}~\cite{wiki:sp500_l
 
 \subsubsection{Dane o historycznym składzie indeksu}
 
-Historyczny skład indeksu jest budowany na podstawie pliku S\&P 500 Historical Components \& Changes, udostępnionego wraz z książką \textit{Trading Evolved}~\cite{clenow:trading} autorstwa Andreas Clenow, który obejmuje okres 1996–2019. Następnie dane są ręcznie aktualizowane o zmiany po 2019 roku na podstawie informacji z Wikipedia oraz dodatkowych źródeł internetowych, ponieważ sekcja „Selected Changes” nie zawiera pełnej historii modyfikacji indeksu. Końcowy zbiór danych powstaje poprzez scalenie oryginalnego pliku z późniejszymi zmianami oraz wykonanie podstawowego czyszczenia danych, co pozwala uzyskać aktualny plik obejmujący pełną historię zmian składu indeksu.
+Historyczny skład indeksu jest budowany na podstawie pliku S\&P 500 Historical Components \& Changes, udostępnionego wraz z książką \textit{Trading Evolved}~\cite{clenow:trading} autorstwa Andreas Clenow, który obejmuje okres 1996–2019. Następnie dane are ręcznie aktualizowane o zmiany po 2019 roku na podstawie informacji z Wikipedia oraz dodatkowych źródeł internetowych, ponieważ sekcja „Selected Changes” nie zawiera pełnej historii modyfikacji indeksu. Końcowy zbiór danych powstaje poprzez scalenie oryginalnego pliku z późniejszymi zmianami oraz wykonanie podstawowego czyszczenia danych, co pozwala uzyskać aktualny plik obejmujący pełną historię zmian składu indeksu.
 
 Na podstawie poniższego wykresu przedstawiającego liczbę spółek wchodzących do indeksu na początku każdego roku widać, że mimo nazwy „S\&P 500” liczba komponentów nie zawsze wynosi dokładnie 500.
 
@@ -173,7 +206,7 @@ Na podstawie poniższego wykresu przedstawiającego liczbę spółek wchodzącyc
     \label{fig:sp500_count}
 \end{figure}
 
-Na przestrzeni ostatnich 30 lat można zauważyć spadek rotacji w indeksie w porównaniu z okresem bańki internetowej w 2000 roku oraz latami poprzedzającymi kryzys 2008 roku, a v ciągu ostatnich 15 lat rotacja ustabilizowała się na poziomie około 20 spółek rocznie. Zmiany w składzie indeksu oraz częstotliwość selekcji będą miały wpływ na skład tworzonych portfeli.
+Na przestrzeni ostatnich 30 lat można zauważyć spadek rotacji w indeksie w porównaniu z okresem bańki internetowej w 2000 roku oraz latami poprzedzającymi kryzys 2008 roku, a w ciągu ostatnich 15 lat rotacja ustabilizowała się na poziomie około 20 spółek rocznie. Zmiany w składzie indeksu oraz częstotliwość selekcji będą miały wpływ na skład tworzonych portfeli.
 
 \begin{figure}[H]
     \centering
@@ -188,6 +221,196 @@ Na przestrzeni ostatnich 30 lat można zauważyć spadek rotacji w indeksie w po
     \caption{Kumulatywna liczba unikalnych spółek wchodzących w skład indeksu S\&P 500.}
     \label{fig:sp500_unique}
 \end{figure}
+
+\subsection{Dane cenowe}
+
+Do selekcji spółek do portfela z wykorzystaniem analizy technicznej w dłuższym terminie wystarczają wartości uzyskane pod koniec sesji każdego dnia (\textbf{End-of-Day, EOD}). Ponieważ dane muszą obejmować również spółki, które już nie istnieją, aby uniknąć błędów badawczych, darmowe źródła często okazują się niewystarczające. W praktyce można przyjąć dwa podejścia:
+
+\begin{itemize}
+    \item pobranie danych cenowych z darmowych źródeł i uzupełnienie brakujących danych profesjonalnym dostawcą,
+    \item pobranie wszystkich danych bezpośrednio od profesjonalnego dostawcy.
+\end{itemize}
+
+W tym projekcie wybrane zostało pierwsze podejście, aby zwizualizować potencjalny wpływ brakujących lub niekompletnych danych na wyniki analizy.
+
+\subsubsection{Dane cenowe z Yahoo Finance}
+
+Najpopularniejszą opcją pozyskania danych cenowych jest korzystanie z \textbf{Yahoo Finance}~\cite{yahoo:finance}, np. poprzez bibliotekę \textbf{yfinance}~\cite{github:yfinance} w Pythonie, która umożliwia pobranie danych historycznych spółek wraz z cenami skorygowanymi o splity i dywidendy.
+
+\paragraph{Uzyskanie danych z pojedynczej spółki} \leavevmode \\
+
+Poniżej przedstawiono przykładowe użycie tej biblioteki w celu uzyskania historii cen akcji spółki Apple (AAPL). Dane cenowe zamknięcia (\textbf{Adj Close}) są już skorygowane o dywidendy.
+
+\begin{lstlisting}[style=pythonstyle, caption={Pobieranie danych historycznych dla AAPL}]
+ticker = "AAPL"
+apple = yf.download(ticker, period="max", actions=True, auto_adjust=False)
+\end{lstlisting}
+
+Poniższy fragment danych – dzień przed, w dniu oraz dzień po splicie akcji – pokazuje, że ceny w danych historycznych uwzględniają już split.
+
+\begin{table}[H]
+\centering
+\caption{Fragment danych Apple (AAPL) wokół splitu akcji (4:1) z dnia 31.08.2020.}
+\label{tab:apple_split}
+\begin{tabular}{|l|r|r|r|r|}
+\hline
+\textbf{Date} & \textbf{Open} & \textbf{Adj Close} & \textbf{Dividends} & \textbf{Stock Splits} \\ \hline
+2020-08-28 & 126.0125 & 121.0600 & 0.0 & 0.0 \\ \hline
+2020-08-31 & 127.5800 & 125.1654 & 0.0 & 4.0 \\ \hline
+2020-09-01 & 132.7600 & 130.1510 & 0.0 & 0.0 \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/10-apple-stock-price.png}
+    \caption{Historia cen akcji Apple (AAPL).}
+    \label{fig:apple_price}
+\end{figure}
+
+\paragraph{Uzyskanie danych o indeksie} \leavevmode \\
+
+Na platformie Yahoo Finance dostępne są różne tickery reprezentujące indeks S\&P 500, które różnią się sposobem uwzględniania dywidend:
+
+\begin{itemize}
+    \item \textbf{SP500 (\^{}GSPC, S\&P 500)} – indeks cenowy (\textit{price return}), uwzględniający wyłącznie zmiany cen akcji spółek wchodzących w skład indeksu.
+    \item \textbf{SP500TR (\^{}SP500TR, S\&P 500 Total Return)} – indeks dochodowy (\textit{total return}), uwzględniający zarówno zmiany cen, jak i reinwestowane dywidendy.
+    \item \textbf{ETF (CSPX.L, iShares Core S\&P 500 UCITS ETF Acc)} – fundusz ETF replikujący indeks S\&P 500 w sposób fizyczny, akumulujący dywidendy (reinwestowane wewnątrz funduszu), stanowiący przybliżenie rzeczywistej stopy zwrotu inwestora.
+\end{itemize}
+
+Zestawienie tych trzech instrumentów pozwala porównać:
+\begin{itemize}
+    \item wpływ dywidend na długoterminową stopę zwrotu,
+    \item różnice między indeksem teoretycznym a rzeczywistym instrumentem inwestycyjnym,
+    \item dokładność odwzorowania indeksu przez ETF (tzw. \textit{tracking error}).
+\end{itemize}
+
+Ich dane w kolumnach Close i Adj Close są jednakowe.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/11-sp500-etf-close-comparison.png}
+    \caption{Porównanie notowań S\&P 500, S\&P 500 Total Return oraz ETF dla kolumny Close (skala logarytmiczna).}
+    \label{fig:index_comparison_close}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/12-sp500-etf-components-10y-returns.png}
+    \caption{Porównanie notowań S\&P 500, S\&P 500 Total Return oraz ETF dla kolumny Adj Close (skala logarytmiczna).}
+    \label{fig:index_comparison_adj}
+\end{figure}
+
+Widzimy nie tylko różnicę między indeksem uwzględniającym dywidendy a tym nieuwzględniającym, ale także między indeksem total return a odpowiadającym mu ETF-em, który zwykle osiąga nieco niższe wyniki z powodu błędu odwzorowania (\textit{tracking error}).
+
+\paragraph{Hybrydowy indeks S\&P 500} \leavevmode \\
+
+Sam ETF nie jest więc wystarczający jako pełny benchmark historyczny, ponieważ jego najdłuższa porównywalna historia (dla ETF-u akumulującego dywidendy) rozpoczyna się dopiero około 2010 roku. Z tego powodu w analizie potrzebne są oba szeregi: \textbf{SP500TR} (długi horyzont historyczny i referencja total return) oraz \textbf{benchmark hybrydowy} (odwzorowanie realnych warunków inwestora poprzez uwzględnienie tracking error i wykorzystanie rzeczywistych notowań ETF tam, gdzie są dostępne).
+
+W praktyce: SP500TR odpowiada za część historyczną (przed debiutem ETF), a hybryda zapewnia ciągłość serii i porównywalność wyników z realnym instrumentem inwestycyjnym.
+
+Do konstrukcji hybrydowego indeksu rozważono podejścia oparte na \textbf{splicingu}, tj. łączeniu fragmentów szeregów czasowych w jedną spójną serię. Przyjęto, że w okresie dostępności ETF-u indeks hybrydowy odpowiada jego rzeczywistym notowaniom, natomiast wcześniejsze obserwacje są rekonstruowane na podstawie indeksu SP500TR.
+
+Rozważono następujące podejścia:
+
+\begin{enumerate}
+    \item \textbf{Proste skalowanie} — dane SP500TR są skalowane tak, aby ich wartość w punkcie łączenia była zgodna z wartością ETF-u.
+
+    \item \textbf{Bezwzględna różnica odwzorowania (tracking difference)} — w okresie wspólnym estymowana jest średnia różnica stóp zwrotu:
+    \[
+    \overline{\text{TD}} = \frac{1}{T}\sum_{t=1}^{T}(R_{\text{TR}} - R_{\text{ETF}}),
+    \]
+    która następnie koryguje historyczne stopy zwrotu:
+    \[
+    r_{\text{HYB}} = R_{\text{TR}} - \overline{\text{TD}}.
+    \]
+    Podejście to pomija jednak kumulatywny charakter błędu odwzorowania oraz jego proporcjonalność do poziomu cen.
+
+    \item \textbf{Względna różnica odwzorowania} — w okresie wspólnym estymowana jest relatywna różnica wyników ETF względem indeksu:
+    \[
+    TD_{annual} = \left(\frac{R_{\text{TR}}}{R_{\text{ETF}}}\right)^{\frac{252}{N}} - 1,
+    \]
+    gdzie $R_{\text{TR}}$ i $R_{\text{ETF}}$ oznaczają całkowite stopy zwrotu, a $N$ liczbę dni sesyjnych.
+
+    Otrzymany parametr interpretowany jest jako średni roczny koszt odwzorowania i przekształcany do dziennego czynnika, który jest następnie kumulowany wstecznie:
+    \[
+    P^{adj}_t = \frac{P_t}{d^k}, \quad d = (1 + TD_{annual})^{1/252},
+    \]
+    gdzie $k$ oznacza liczbę dni od momentu rozpoczęcia notowań ETF.
+
+    Tak skorygowana seria jest następnie skalowana w punkcie łączenia w celu zapewnienia ciągłości z rzeczywistymi notowaniami ETF.
+\end{enumerate}
+
+Do utworzenia benchmarku przyjęto \textbf{trzecie podejście}, ponieważ pozwala ono uchwycić kumulatywny charakter błędu odwzorowania, przy jednoczesnym zachowaniu prostoty i stabilności estymacji oraz pełnej zgodności z obserwowanymi danymi ETF po dacie jego debiutu.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/13-sp500-benchmark-comparison.png}
+    \caption{Porównanie hybrydowego benchmarku z indeksem SP500TR i SP500.}
+    \label{fig:hybrid_benchmark}
+\end{figure}
+
+Poniżej przedstawiono wizualizację dwóch okresów hybrydowego indeksu:
+\begin{itemize}
+    \item \textbf{przed debiutem ETF} – historyczne notowania odtworzone na podstawie SP500TR z uwzględnieniem tracking difference.
+    \item \textbf{po debiucie ETF} – hybrydowy indeks pokrywa się z ETF-em.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/14-sp500-benchmark-2000-2010.png}
+    \caption{Hybrydowy indeks S\&P 500 w okresie przed debiutem funduszu ETF (2000–2010).}
+    \label{fig:sp500_benchmark_2000_2010}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/15-sp500-etf-benchmark-2010-2020.png}
+    \caption{Hybrydowy indeks S\&P 500 oraz notowania ETF po debiucie funduszu (2010–2020).}
+    \label{fig:sp500_etf_benchmark_2010_2020}
+\end{figure}
+
+\paragraph{S\&P 500 Equal Weighted} \leavevmode \\
+
+Dla indeksu S\&P 500 Equal Weighted dostępne są następujące tickery:
+
+\begin{itemize}
+    \item \textbf{SP500EW} (\texttt{\^{}SP500EW}, S\&P 500 Equal Weight Index) — indeks cenowy (\textit{price return}) równoważonej wersji S\&P 500, gdzie każda spółka ma identyczny udział niezależnie od kapitalizacji.
+    \item \textbf{ETF\_EW} (\texttt{RSP}, Invesco S\&P 500 Equal Weight ETF) — fundusz ETF replikujący indeks S\&P 500 z równymi wagami, akumulujący dywidendy.
+\end{itemize}
+
+Na wykresie widać, że w ostatnich latach benchmark oparty na S\&P 500 przewyższał ETF na S\&P 500 Equal Weight. Jednak w latach przed 2018 strategia równych wag często osiągała podobne lub lepsze wyniki. Oznacza to, że relatywna efektywność podejścia equal-weight w dużej mierze zależy od siły największych spółek w indeksie.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/16-sp500-equal-weighted-comparison.png}
+    \caption{Porównanie wyników indeksu S\&P 500 oraz strategii Equal Weight.}
+    \label{fig:sp500_equal_weighted}
+\end{figure}
+
+Analogicznie do hybrydowego benchmarku dla S\&P 500 ważonego kapitalizacją, można byłoby skonstruować benchmark hybrydowy dla wersji equal-weighted, uwzględniając wpływ dywidend zamiast błędu odwzorowania. W tym przypadku jednak \texttt{ETF\_EW} (\texttt{RSP}) dysponuje najdłuższą dostępną historią — sięgającą 2003 roku — a przedłużenie jej wstecz napotyka na istotne ograniczenia: indeks dochodowy \texttt{SP500EWTR} nie jest dostępny w serwisie Yahoo Finance, \texttt{SP500EW} obejmuje krótszy okres, natomiast zastosowanie benchmarku cap-weighted jako substytutu zniekształciłoby charakterystykę strategii equal-weighted. Z tego powodu \texttt{benchmark\_ew} ograniczony jest do okresu dostępności \texttt{ETF\_EW}, a porównanie obu podejść prowadzone jest na wspólnym horyzoncie czasowym.
+
+\paragraph{Ile danych brakuje?} \leavevmode \\
+
+Na poniższym wykresie widać, że w 1996 dane z Yahoo Finance pokrywają tylko 38\%. Przy wyższym pokryciu można byłoby zastosować imputację brakujących danych, jednak jest ono na tyle małe, że konieczne będzie skorzystanie z dostawców danych, pokrywających spółki, które już nie są notowane.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/17-yf-coverage-over-time.png}
+    \caption{Pokrycie danych cenowych spółek z indeksu S\&P 500 w serwisie Yahoo Finance.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/18-yf-missing-data-reasons.png}
+    \caption{Przyczyny brakujących danych cenowych spółek z indeksu S\&P 500 w serwisie Yahoo Finance.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+
+
+
 
 \begin{thebibliography}{9}
 
@@ -229,6 +452,12 @@ Wikipedia, \textit{List of S\&P 500 companies}, dostępny w Internecie: \url{htt
 
 \bibitem{clenow:trading}
 Clenow, A. F., \textit{Trading Evolved: Anyone Can Build Killer Trading Strategies in Python}, 2019.
+
+\bibitem{yahoo:finance}
+Yahoo Finance, dostępny w Internecie: \url{https://finance.yahoo.com/} [dostęp: 2026-06-07].
+
+\bibitem{github:yfinance}
+Ran Aroussi, \textit{yfinance - Yahoo! Finance market data downloader}, GitHub: \url{https://github.com/ranaroussi/yfinance} [dostęp: 2026-06-07].
 
 \end{thebibliography}
 
