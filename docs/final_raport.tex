@@ -398,14 +398,14 @@ Na poniższym wykresie widać, że w 1996 dane z Yahoo Finance pokrywają tylko 
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/17-yf-coverage-over-time.png}
     \caption{Pokrycie danych cenowych spółek z indeksu S\&P 500 w serwisie Yahoo Finance.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:yf_coverage}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/18-yf-missing-data-reasons.png}
     \caption{Przyczyny brakujących danych cenowych spółek z indeksu S\&P 500 w serwisie Yahoo Finance.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:yf_missing_reasons}
 \end{figure}
 
 \subsubsection{Dane cenowe z EODHD}
@@ -436,14 +436,14 @@ Poniżej wykres przedstawiający pokrycie dla EODHD oraz diagram przyczyn brakuj
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/19-eodhd-coverage-over-time.png}
     \caption{Pokrycie danych cenowych spółek z indeksu S\&P 500 w serwisie EODHD.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:eodhd_coverage}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/20-eodhd-missing-data-reasons.png}
     \caption{Przyczyny brakujących danych cenowych spółek z indeksu S\&P 500 w serwisie EODHD.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:eodhd_missing_reasons}
 \end{figure}
 
 Widać, że pokrycie jest znacznie lepsze niż w przypadku Yahoo Finance, jednak nadal nie jest kompletne.
@@ -456,7 +456,7 @@ Po połączeniu danych z YahooFinance i EODHD wyniki analizy pokrycia nie wykazu
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/21-merged-coverage-over-time.png}
     \caption{Pokrycie danych cenowych spółek z indeksu S\&P 500 po połączeniu danych z Yahoo Finance i EODHD.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:merged_coverage}
 \end{figure}
 
 \subsubsection{Uzupełnienie brakujących danych}
@@ -499,7 +499,7 @@ Można zauważyć, że stopy zwrotu spółek, których dane cenowe są dostepne,
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/22-index-comparison.png}
     \caption{Porównanie indeksu S\&P 500 z równymi wagami (ETF\_EW) z średnim komponentem indeksu S\&P 500 z pokryciem.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:ew_vs_observed}
 \end{figure}
 
 Można zauważyć, że w okresie bańki internetowej w okolicach roku 2000 sztucznie utworzony ticker wzrósł około 10-krotnie. Wynika to z ograniczenia metodologicznego: w tym okresie jako indeks stosowany jest SP500TR, który jest ważony kapitalizacją rynkową. Tymczasem średnia komponentów liczona jest z równymi wagami. Duże spółki technologiczne, dominujące w indeksie, rosły w tym czasie wyjątkowo szybko — stąd indeks systematycznie przewyższał średni komponent. Formuła imputacji błędnie interpretuje tę różnicę jako zwrot brakujących spółek, zawyżając wartość syntetycznego tickera. Dlatego warto ograniczyć zakres badania do okresu po 2001 roku.
@@ -508,7 +508,7 @@ Można zauważyć, że w okresie bańki internetowej w okolicach roku 2000 sztuc
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/23-index-comparison-with-missing.png}
     \caption{Porównanie indeksu S\&P 500 z równymi wagami (ETF\_EW) z średnim komponentem indeksu S\&P 500 z pokryciem wraz z syntetycznym tickerem reprezentującym brakujące dane.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:ew_vs_observed_with_missing}
 \end{figure}
 
 \subsection{Tworzenie strategii}
@@ -533,7 +533,7 @@ Najprostszą strategią, którą można przetestować jest strategia losowa, kt�
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/24-random-strategy.png}
     \caption{Wyniki strategii losowej z różnymi częstotliwościami doboru w porównaniu z benchmarkiem S\&P 500.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:random_strategy}
 \end{figure}
 
 Można zauważyć, że strategia losowa dla częstszego doboru radzi sobie wyraźnie gorzej dla doboru miesięcznego i rocznego od benchmarku. Dla doboru kwartalnego — wyraźnie lepiej, co budzi wątpliwości co do jakości zbioru danych.
@@ -553,7 +553,7 @@ W tej pracy przyjmuję $r_f = 0$, więc sprowadza się on do ilorazu średniego 
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/25-mc-strategy.png}
     \caption{Wyniki strategii Monte Carlo z różnymi częstotliwościami doboru w porównaniu z benchmarkiem S\&P 500.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:mc_strategy}
 \end{figure}
 
 W przypadku strategii opartej na Monte Carlo również to dobór kwartalny daje najlepsze wyniki. Wynik zbliżony, ale lekko powyżej benchmarku osiąga dobór miesięczny, co jest dosyć zrozumiałe - to dosyć krótki okres dla inwestowania w akcje.
@@ -566,7 +566,7 @@ W tej strategii, zamiast losować portfele, wybieramy $N$ spółek, które w okn
     \centering
     \includegraphics[width=0.9\textwidth]{reports/figures/26-bs-strategy.png}
     \caption{Wyniki strategii najwyższego współczynnika Sharpe'a z różnymi częstotliwościami doboru w porównaniu z benchmarkiem S\&P 500.}
-    \label{fig:sp500_data_coverage}
+    \label{fig:bs_strategy}
 \end{figure}
 
 Tym razem to dobór roczny okazał się dużo lepszy niż benchmark. Dobór kwartalny daje wyniki porównywalne z benchmarkiem, natomiast miesięczny ponownie dużo gorzej.
