@@ -1,8 +1,27 @@
 \documentclass[12pt, a4paper]{article}
 
+% Packages for better formatting and Polish language support
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[polish]{babel}
+
+% Packages to handle graphics and figures
+\usepackage{graphicx}
+\usepackage{float} % Enables to use [H] for exact figure placement
+\usepackage{svg} % Allows to include SVG images directly
+\usepackage{svg-extract} % Required to use the extractpath option in svgsetup
+\svgsetup{
+    extractpath=docs/svg-inkscape,
+    clean=true
+} % Set directory for svg-inkscape artifacts and clean temp files
+
+% Package for better tables
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black, % color of internal links
+    urlcolor=blue    % color of URL links
+}
 
 \title{Raport Końcowy \\ \large Selekcja i optymalizacja portfela spółek giełdowych z wykorzystaniem symulacji Monte Carlo}
 \author{Michał Ludwiczak}
@@ -11,5 +30,115 @@
 \begin{document}
 
 \maketitle
+
+\section{Wstęp}
+
+Projekt jest realizowany w ramach przedmiotu Projekt Indywidualny na Politechnice Warszawskiej, na kierunku Informatyka Stosowana. Jego celem jest analiza oraz optymalizacja portfela spółek giełdowych z wykorzystaniem symulacji Monte Carlo, a także pokazanie złożoności testowania strategii inwestycyjnych oraz wpływu jakości danych na uzyskiwane wyniki. Jego celem nie jest utworzenie strategii bijącej szeroki rynek akcji.
+
+\subsection{Benchmark}
+
+Wyniki analizowanych strategii będą porównywane z indeksem \textbf{S\&P 500} (Standard \& Poor's 500)~\cite{wiki:sp500}, który jest jednym z najczęściej stosowanych benchmarków dla rynku akcji w Stanach Zjednoczonych. Indeks ten reprezentuje szeroki przekrój dużych i płynnych spółek, a jego wyniki są często traktowane jako przybliżenie zachowania całego rynku akcji (reprezentuje około 80\% kapitalizacji). Ze względu na charakter globalny dużej większości składowych indeksu, indeks ten nie tylko powinien dobrze odzwierciedlać gospodarkę Stanów Zjednoczonych, ale również i gospodarkę globalną.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{notebooks/images/1-sp500-50yo-chart.png}
+    \caption{50-letni wykres indeksu S\&P 500~\cite{stooq:sp500}.}
+    \label{fig:sp500_chart}
+\end{figure}
+
+Indeks jest również odpowiednio zdywersyfikowany – spółki należą do różnych sektorów, jednak dominujący jest sektor technologiczny, co wynika z faktu, że S\&P 500 jest indeksowany kapitalizacją rynkową, a największe spółki technologiczne mają największe wagi, co znacząco wpływa na wycenę całego indeksu.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=0.9\textwidth]{notebooks/images/2-sp500-sector-components.svg}
+    \caption{Skład sektorowy indeksu S\&P 500 stan na styczeń 2025~\cite{forex:sp500}.}
+    \label{fig:sp500_sectors}
+\end{figure}
+
+Największe 7 spółek w indeksie S\&P 500 są określane jako Wspaniała Siódemka (The Magnificent Seven). Ich znaczący udział w kapitalizacji indeksu sprawia, że mają one nieproporcjonalnie duży wpływ na jego wyniki, co przedstawiono na rysunku~\ref{fig:sp500_mag7}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{notebooks/images/3-sp500-mag-7.png}
+    \caption{Wpływ „Wspaniałej Siódemki” na indeks S\&P 500~\cite{seekingalpha:mag7}.}
+    \label{fig:sp500_mag7}
+\end{figure}
+
+Istnieje również wersja indeksu S\&P 500 z kwartalnym równoważeniem wag spółek (\textbf{S\&P 500 equal-weighted}), w której każda spółka ma taki sam udział w indeksie, niezależnie od kapitalizacji rynkowej. W tej wersji dominacja największych spółek technologicznych jest znacznie mniejsza, a wpływ mniejszych spółek na wartość indeksu staje się bardziej widoczny.
+
+Porównanie z S\&P 500 pozwala ocenić, czy zastosowane metody selekcji spółek oraz konstrukcji portfela prowadzą do rezultatów lepszych lub porównywalnych z prostą strategią inwestowania w szeroki indeks rynkowy. Jest to istotne, ponieważ wiele aktywnych strategii inwestycyjnych w długim okresie nie jest w stanie konsekwentnie osiągać wyników lepszych od indeksów rynkowych. Oczywiście wszystkie stopy zwrotu, zarówno indeksu, jak i portfeli, są wyrażone w wartościach nominalnych i obciążone wpływem inflacji, co oznacza, że realne stopy zwrotu są niższe. Jednak przy porównaniu z benchmarkiem względny wynik pozostaje niezmieniony, dlatego wpływ inflacji nie zmienia wniosków dotyczących efektywności strategii.
+Wpływ podatków także nie jest uwzględniany, co pozwala skupić się wyłącznie na porównaniu względnej wydajności portfela względem indeksu.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{notebooks/images/4-sp500-returns.png}
+    \caption{Średnie roczne stopy zwrotu indeksu S\&P 500~\cite{tradethatswing:returns}.}
+    \label{fig:sp500_returns}
+\end{figure}
+
+\subsection{Inwestorzy VS Indeks}
+
+W teorii, odpowiednio dobrany portfel uzyskać lepsze wyniki niż sam indeks S\&P 500 poprzez selekcję spółek o lepszych perspektywach oraz optymalną alokację wag. W praktyce jest to trudne, na co wskazują dane raportu \textbf{SPIVA® U.S. Year-End 2025}~\cite{spiva:2025} - w 2025 roku 79\% wszystkich aktywnych funduszy akcyjnych o dużej kapitalizacji w Stanach Zjednoczonych osiągnęło wyniki gorsze od indeksu S\&P 500.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{notebooks/images/5-funds-vs-sp500.png}
+    \caption{Wyniki funduszy aktywnych względem indeksu S\&P 500~\cite{spiva:2025}.}
+    \label{fig:funds_vs_sp500}
+\end{figure}
+
+Od 2001 do 2025 tylko w latach 2005, 2007 i 2009 udało się pobić S\&P 500 większości z nich.
+
+Inwestorzy indywidualni również często nie osiągają wyników lepszych od indeksu. Według raportu \textbf{DALBAR – Quantitative Analysis of Investor Behavior (QAIB) 2024}~\cite{dalbar:2024}, przeciętny inwestor giełdowy uzyskał stopę zwrotu na poziomie 16,54\%, podczas gdy indeks S\&P 500 osiągnął 25,02\%. Różnica 848 punktów bazowych była drugą największą w ciągu ostatniej dekady, co pokazuje, że większość inwestorów detalicznych systematycznie nie dorównuje wynikowi szerokiego rynku.
+
+Badania akademickie, takie jak \textbf{Trading Is Hazardous to Your Wealth (Berkeley)}~\cite{berkeley:trading}, wskazują, że realne decyzje inwestorów indywidualnych – częste kupno i sprzedaż akcji, próby „timingu” rynku oraz reakcje emocjonalne – znacząco obniżają ich wyniki w porównaniu z prostą strategią buy-and-hold indeksu S\&P 500. W przypadku inwestorów indywidualnych często dochodzi do mylenia roli \textbf{inwestora} z rolą \textbf{spekulanta}, jak wskazuje Benjamin Graham w klasycznej literaturze inwestycyjnej: wielu uczestników rynku podejmuje decyzje krótkoterminowe, oczekując szybkich zysków, zamiast koncentrować się na długoterminowej wartości spółki.
+
+\subsection{Cel projektu}
+
+Celem projektu nie jest bezwzględne pobicie indeksu, lecz racjonalna selekcja i optymalizacja portfela spółek w oparciu o dane historyczne tak aby uzyskać efektywność porównywalną z benchmarkiem przy kontrolowanym ryzyku.
+Projekt ma również charakter badawczo-eksperymentalny.
+
+Efekty projektu pozwolą lepiej zrozumieć ograniczenia strategii aktywnych inwestorów i ich realną skuteczność w porównaniu z szerokim indeksem rynkowym.
+
+\subsection{Założenia}
+
+Projekt opiera się na dwóch głównych założeniach:
+\begin{enumerate}
+    \item W teorii, odpowiednio wybrany podzbiór spółek z indeksu S\&P 500 powinien wykazywać wyniki lepsze niż sam indeks, dzięki selekcji spółek o wyższych perspektywach.
+    \item Próba wykorzystania wszystkich spółek światowych (kolejnym benchmarkiem byłby z pewnością MSCI World Index~\cite{msci:world}) do budowy strategii portfela byłaby nadmiernie złożona, zarówno pod względem obliczeniowym, jak i dostępności danych.
+\end{enumerate}
+
+W związku z tym, analizowane spółki pochodzą wyłącznie z indeksu S\&P 500, co pozwala na realistyczne i porównywalne badanie różnych strategii inwestycyjnych przy zachowaniu spójności danych historycznych.
+
+\begin{thebibliography}{9}
+
+\bibitem{wiki:sp500}
+Wikipedia, \textit{S\&P 500}, dostępny w Internecie: \url{https://pl.wikipedia.org/wiki/S\%26P_500} [dostęp: 2026-06-07].
+
+\bibitem{stooq:sp500}
+Stooq, \textit{S\&P 500 – wykres 50-letni (SPX)}, dostępny w Internecie: \url{https://stooq.com/q/?s=\%5Espx&c=50y&t=c&a=lg&b=0} [dostęp: 2026-06-07].
+
+\bibitem{forex:sp500}
+Forex, \textit{Trading the S\&P 500}, dostępny w Internecie: \url{https://www.forex.com/en-au/index-trading/trading-the-sp-500/} [dostęp: 2026-06-07].
+
+\bibitem{seekingalpha:mag7}
+Seeking Alpha, \textit{2026 Market Outlook: The S\&P 500 Illusion And The Small-Cap Pivot}, dostępny w Internecie: \url{https://seekingalpha.com/article/4856133-2026-market-outlook-the-s-and-p-500-illusion-and-the-small-cap-pivot} [dostęp: 2026-06-07].
+
+\bibitem{tradethatswing:returns}
+TradeThatSwing, \textit{Average Historical Stock Market Returns for S\&P 500}, dostępny w Internecie: \url{https://tradethatswing.com/average-historical-stock-market-returns-for-sp-500-5-year-up-to-150-year-averages/} [dostęp: 2026-06-07].
+
+\bibitem{spiva:2025}
+S\&P Global, \textit{SPIVA® U.S. Year-End 2025}, dostępny w Internecie: \url{https://www.spglobal.com/spdji/en/spiva/article/spiva-us/} [dostęp: 2026-06-07].
+
+\bibitem{dalbar:2024}
+DALBAR, \textit{Quantitative Analysis of Investor Behavior (QAIB) 2024}, dostępny w Internecie: \url{https://www.dalbar.com/press-release/investors-missed-the-best-of-2024s-market-gains-latest-dalbar-investor-behavior-report-finds/} [dostęp: 2026-06-07].
+
+\bibitem{berkeley:trading}
+Barber, B. M., \& Odean, T., \textit{Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors}, dostępny w Internecie: \url{https://faculty.haas.berkeley.edu/odean/papers\%20current\%20versions/individual_investor_performance_final.pdf} [dostęp: 2026-06-07].
+
+\bibitem{msci:world}
+MSCI, \textit{MSCI World Index}, dostępny w Internecie: \url{https://www.msci.com/indexes/index/990100} [dostęp: 2026-06-07].
+
+\end{thebibliography}
 
 \end{document}
