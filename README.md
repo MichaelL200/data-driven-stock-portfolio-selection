@@ -81,6 +81,7 @@ In some cases, the project may serve as a tool or library. For these types of re
 
 ```
 ├── README.md          <- The top-level README for developers using this project.
+├── build_pdf.py       <- Script to compile the LaTeX report to PDF.
 ├── data
 │   ├── external       <- Data from third party sources.
 │   ├── interim        <- Intermediate data that has been transformed.
