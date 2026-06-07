@@ -176,8 +176,11 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# data
+# Data
 data/
 
-# figures
+# Figures
 reports/figures/
+
+# Auxiliary files
+*.aux
