@@ -448,6 +448,70 @@ Poniżej wykres przedstawiający pokrycie dla EODHD oraz diagram przyczyn brakuj
 
 Widać, że pokrycie jest znacznie lepsze niż w przypadku Yahoo Finance, jednak nadal nie jest kompletne.
 
+\subsubsection{Połączenie danych z Yahoo Finance i EODHD}
+
+Po połączeniu danych z YahooFinance i EODHD wyniki analizy pokrycia nie wykazują różnicy. Oznacza to, że tych danych, których nie ma w EODHD, nie ma również w danych z YahooFinance.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/21-merged-coverage-over-time.png}
+    \caption{Pokrycie danych cenowych spółek z indeksu S\&P 500 po połączeniu danych z Yahoo Finance i EODHD.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+\subsubsection{Uzupełnienie brakujących danych}
+
+Aby ograniczyć wpływ błędu przeżywalności, należy uwzględnić zwroty z akcji spółek, dla których brakuje danych w zbiorze. Błąd ten zazwyczaj prowadzi do zawyżenia stóp zwrotu portfeli, co skutkuje nierealistycznymi wynikami i błędnymi wnioskami. Można go ograniczyć na dwa sposoby:
+
+\begin{enumerate}
+    \item \textbf{Ograniczenie okna czasowego} — uwzględniać tylko okres, w którym pokrycie indeksu przekracza ustalony próg. W tym przypadku sensowne jest przyjęcie poziomu \textasciitilde{}80\% i rozpoczęcie analizy od 1998 roku. Skraca to okres badania jedynie o około 2 lata, a eliminuje fragment danych o niskim pokryciu.
+
+    \item \textbf{Imputacja brakujących danych} — uzupełnić brakujące obserwacje na podstawie stóp zwrotu indeksu oraz dostępnych danych pozostałych spółek.
+\end{enumerate}
+
+W praktyce najlepiej połączyć oba podejścia.
+
+\paragraph{Imputacja}
+
+Jednym ze sposobów imputacji jest wprowadzenie pomocniczego tickera, który reprezentuje spółki bez dostępnych danych. Następnie uwzględnia się go w modelach każdej strategii proporcjonalnie do poziomu pokrycia. Najpierw oblicza się średnią stopę zwrotu dla spółek z dostępnymi danymi, a następnie estymuje średni zwrot brakującej części tak, aby całość była spójna ze stopą zwrotu indeksu:
+
+\[
+\Delta r_{\text{missing}} \approx \frac{\Delta r_{\text{index}} - \text{coverage} \cdot \Delta r_{\text{observed}}}{1 - \text{coverage}}
+\]
+
+\textbf{Przykład:}
+
+\begin{itemize}
+    \item $\Delta r_{\text{index}} = 100$
+    \item $\text{coverage} = 0{,}75$
+    \item $\Delta r_{\text{observed}} = 110$
+\end{itemize}
+
+\[
+\Delta r_{\text{missing}} = \frac{100 - 0{,}75 \cdot 110}{1 - 0{,}75} = \frac{100 - 82{,}5}{0{,}25} = 70
+\]
+
+Niestety ten sposób nie jest idealny — przyjmujemy, że każda spółka w indeksie ma ten sam udział, co nie jest prawdą. Dlatego jako indeks przyjmujemy S\&P 500 z równymi wagami (\texttt{ETF\_EW}) przez jak najdłuższy okres, a następnie dołącza się klasyczne S\&P 500 (\texttt{SP500TR}).
+
+Można zauważyć, że stopy zwrotu spółek, których dane cenowe są dostepne, są większe niż stopy zwrotu indeksu, co jest wynikiem zamierzonym i dobrze odzwierciedla skalę błędu przeżywalności.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/22-index-comparison.png}
+    \caption{Porównanie indeksu S\&P 500 z równymi wagami (ETF\_EW) z średnim komponentem indeksu S\&P 500 z pokryciem.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+Można zauważyć, że w okresie bańki internetowej w okolicach roku 2000 sztucznie utworzony ticker wzrósł około 10-krotnie. Wynika to z ograniczenia metodologicznego: w tym okresie jako indeks stosowany jest SP500TR, który jest ważony kapitalizacją rynkową. Tymczasem średnia komponentów liczona jest z równymi wagami. Duże spółki technologiczne, dominujące w indeksie, rosły w tym czasie wyjątkowo szybko — stąd indeks systematycznie przewyższał średni komponent. Formuła imputacji błędnie interpretuje tę różnicę jako zwrot brakujących spółek, zawyżając wartość syntetycznego tickera. Dlatego warto ograniczyć zakres badania do okresu po 2001 roku.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/23-index-comparison-with-missing.png}
+    \caption{Porównanie indeksu S\&P 500 z równymi wagami (ETF\_EW) z średnim komponentem indeksu S\&P 500 z pokryciem wraz z syntetycznym tickerem reprezentującym brakujące dane.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+
 
 
 
