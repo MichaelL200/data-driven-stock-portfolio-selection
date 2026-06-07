@@ -511,9 +511,97 @@ Można zauważyć, że w okresie bańki internetowej w okolicach roku 2000 sztuc
     \label{fig:sp500_data_coverage}
 \end{figure}
 
+\subsection{Tworzenie strategii}
 
+Przy doborze portfeli inwestycyjnych jednym z kluczowych parametrów jest \textbf{liczba spółek wchodzących} w ich skład. Liczba ta może być zmienna — co często występuje w portfelach aktywnie zarządzanych — lub stała, co jest typowe dla portfeli dobieranych automatycznie według określonych reguł.
 
+Za optymalną równowagę pomiędzy dywersyfikacją a koncentracją portfela uznaje się zazwyczaj od 10 do 20 spółek. Zbyt duża liczba walorów może prowadzić do osiągania stóp zwrotu zbliżonych do indeksu rynkowego, a często nawet niższych. Z kolei nadmierna specjalizacja powoduje, że wyniki pojedynczych spółek mają zbyt duży wpływ na wartość całego portfela, zwiększając jego ryzyko.
 
+W dalszej części pracy, przy analizie poszczególnych strategii, przyjęto środkową wartość tego przedziału, czyli portfel składający się z $N = 15$ spółek.
+
+Kolejnym analizowanym parametrem jest \textbf{częstotliwość doboru} portfela, rozpatrywana w wariantach miesięcznym, kwartalnym oraz rocznym. Każda z tych częstotliwości wiąże się z inną równowagą pomiędzy szybkością reakcji na zmiany rynkowe a kosztami oraz stabilnością portfela. W ramach pracy przeprowadzone zostaną testy dla każdego z rozważanych wariantów.
+
+Należy zaznaczyć również, że rzeczywiste stopy zwrotu byłyby niższe, szczególnie dla comiesięcznego doboru ze względu na koszty zmiany składu portfela.
+
+Ekstremalne dzienne zwroty są odrzucane dla obu strategii, gdyż są one spowodowane błędami w zbiorze danych.
+
+\subsection{Strategia losowa}
+
+Najprostszą strategią, którą można przetestować jest strategia losowa, która losowo dobiera daną liczbę spółek cyklicznie.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/24-random-strategy.png}
+    \caption{Wyniki strategii losowej z różnymi częstotliwościami doboru w porównaniu z benchmarkiem S\&P 500.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+Można zauważyć, że strategia losowa dla częstszego doboru radzi sobie wyraźnie gorzej dla doboru miesięcznego i rocznego od benchmarku. Dla doboru kwartalnego — wyraźnie lepiej, co budzi wątpliwości co do jakości zbioru danych.
+
+\subsection{Strategia Monte Carlo}
+
+W przypadku metody Monte Carlo dochodzi kolejny czynnik — \textbf{okno wstecz}, które przyjąłem za rok, a więc w przybliżeniu 252 dni handlowych.
+
+W poniższej strategii Monte Carlo to losowanie wielu portfeli, a nie symulacja ścieżek cen dla pojedynczych spółek. Dla każdej daty rebalansu wybiera się aktywne spółki z indeksu i zostawia te z wystarczającą liczbą obserwacji w oknie wstecz.
+Dla każdej spółki liczę średni dzienny zwrot i zmienność, po czym losuje się określoną liczbę portfeli (przyjęto: 500) po $N$ spółek. Wybrany portfel to ten o najwyższym współczynniku Sharpe'a, definiowanym jako:
+\[
+S = \frac{\mu - r_f}{\sigma}
+\]
+W tej pracy przyjmuję $r_f = 0$, więc sprowadza się on do ilorazu średniego zwrotu i zmienności.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/25-mc-strategy.png}
+    \caption{Wyniki strategii Monte Carlo z różnymi częstotliwościami doboru w porównaniu z benchmarkiem S\&P 500.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+W przypadku strategii opartej na Monte Carlo również to dobór kwartalny daje najlepsze wyniki. Wynik zbliżony, ale lekko powyżej benchmarku osiąga dobór miesięczny, co jest dosyć zrozumiałe - to dosyć krótki okres dla inwestowania w akcje.
+
+\subsection{Strategia najwyższego współczynnika Sharpe'a}
+
+W tej strategii, zamiast losować portfele, wybieramy $N$ spółek, które w oknie wstecznym miały najwyższy indywidualny współczynnik Sharpe'a. A więc również nie jest to symulacja ścieżek cen dla pojedynczych spółek, a uproszczenie, które w teorii powinno dawać podobne wyniki. Jest to podejście bardziej deterministyczne, które faworyzuje historycznie „najlepsze” spółki niż losowanie portfeli. Parametry pozostają bez zmian.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/26-bs-strategy.png}
+    \caption{Wyniki strategii najwyższego współczynnika Sharpe'a z różnymi częstotliwościami doboru w porównaniu z benchmarkiem S\&P 500.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+Tym razem to dobór roczny okazał się dużo lepszy niż benchmark. Dobór kwartalny daje wyniki porównywalne z benchmarkiem, natomiast miesięczny ponownie dużo gorzej.
+
+Ponownie - te wyniki strategii również należy brać z ostrożnością. W takim wypadku dobrym pomysłem może okazać się porównanie każdej z tych 3 strategii dla doboru, w którym wszystkie dawały dobre w porównaniu z benchmarkiem zwroty, a więc doboru kwartalnego.
+
+\subsection{Porównanie strategii}
+
+Spośród analizowanych strategii najlepsze wyniki osiągnęła strategia Monte Carlo, której końcowa wartość przekroczyła 1600 (przy wartości początkowej równej 100). Dla porównania strategia losowa osiągnęła około 1200, natomiast strategia najwyższego współczynnika Sharpe'a około 1000. Wszystkie strategie znacząco przewyższyły benchmark, którego końcowa wartość wyniosła około 800. Ze względu na zaskakująco dobre wyniki strategii Random przy rebalansowaniu kwartalnym, może stanowić ona bardziej wymagający punkt odniesienia niż sam benchmark.
+
+Przewagę strategii Monte Carlo bazującej na losowaniu całych portfeli można tłumaczyć korzyściami płynącymi z dywersyfikacji. W tej metodzie spośród wielu losowo wygenerowanych portfeli wybierany jest ten o najwyższym współczynniku Sharpe'a, uwzględniającym zarówno oczekiwaną stopę zwrotu, jak i ryzyko całego portfela. Dzięki temu możliwe jest znalezienie kombinacji spółek, których wzajemne korelacje prowadzą do obniżenia zmienności portfela przy zachowaniu wysokich stóp zwrotu. Z kolei strategia oparta na wyborze N spółek o najwyższym historycznym współczynniku Sharpe'a nie uwzględnia zależności pomiędzy aktywami. Może to skutkować koncentracją portfela w spółkach o podobnym profilu ryzyka lub należących do tych samych sektorów, ograniczając efekty dywersyfikacji i prowadząc do słabszych wyników inwestycyjnych.
+
+\begin{table}[H]
+\centering
+\caption{Porównanie współczynników Sharpe'a dla poszczególnych strategii i częstotliwości doboru portfela.}
+\label{tab:sharpe_comparison}
+\begin{tabular}{|l|r|}
+\hline
+\textbf{strategy} & \textbf{sharpe\_ratio} \\ \hline
+Best Sharpe (Yearly) & 0.6589 \\ \hline
+Monte Carlo (Quarterly) & 0.6379 \\ \hline
+Benchmark & 0.5620 \\ \hline
+Random (Quarterly) & 0.5532 \\ \hline
+Monte Carlo (Yearly) & 0.5285 \\ \hline
+Best Sharpe (Quarterly) & 0.5285 \\ \hline
+Monte Carlo (Monthly) & 0.4043 \\ \hline
+Best Sharpe (Monthly) & 0.4037 \\ \hline
+Random (Yearly) & 0.3071 \\ \hline
+Random (Monthly) & 0.2485 \\ \hline
+\end{tabular}
+\end{table}
+
+Tabela współczynników Sharpe'a rozszerza obraz o pozostałe częstotliwości rebalansowania. Patrząc tylko na dobór kwartalny, Monte Carlo osiąga najwyższy współczynnik Sharpe'a (\textasciitilde{}0{,}64) spośród trzech strategii, wyprzedzając strategię losową (\textasciitilde{}0{,}55) i strategię najwyższego współczynnika Sharpe'a (\textasciitilde{}0{,}53), co jest spójne z wykresem.
+
+W szerszym zestawieniu najwyższy współczynnik Sharpe'a osiąga roczna strategia najwyższego współczynnika Sharpe'a (\textasciitilde{}0{,}66), co sugeruje, że ta strategia przy dłuższym horyzoncie rebalansowania lepiej kontroluje ryzyko. Razem z kwartalną strategią Monte Carlo osiąga wynik lepszy od benchmarku. Dobór miesięczny we wszystkich trzech strategiach wypada konsekwentnie najsłabiej, co jest spójne z wcześniejszymi obserwacjami.
 
 
 \begin{thebibliography}{9}
