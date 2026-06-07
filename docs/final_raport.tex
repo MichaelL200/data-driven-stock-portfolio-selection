@@ -408,6 +408,46 @@ Na poniższym wykresie widać, że w 1996 dane z Yahoo Finance pokrywają tylko 
     \label{fig:sp500_data_coverage}
 \end{figure}
 
+\subsubsection{Dane cenowe z EODHD}
+
+Na EODHD dostępnych jest kilka tickerów, dla których można korzystać z danych bezpłatnie. W przypadku akcji amerykańskich są to:
+\begin{itemize}
+    \item \texttt{AAPL.US}
+    \item \texttt{TSLA.US}
+    \item \texttt{VTI.US}
+    \item \texttt{AMZN.US}
+\end{itemize}
+
+\begin{lstlisting}[style=pythonstyle, caption={Pobieranie danych historycznych dla kilku darmowych tickerów z EODHD}]
+demo_key = "demo"
+free_tickers = ["AAPL", "TSLA", "VTI", "AMZN"]
+
+dataset.EODHD.download(
+    tickers=free_tickers,
+    api_key=demo_key,
+)auto_adjust=False)
+\end{lstlisting}
+
+Aby pobrać dane o spółkach wycofanych z giełdy trzeba zmapować tickery z submodułu sp500, na te, które istnieją na liście wycofanych tickerów w EODHD.
+
+Poniżej wykres przedstawiający pokrycie dla EODHD oraz diagram przyczyn brakujących danych. Widać, że pokrycie jest znacznie lepsze niż w przypadku Yahoo Finance, jednak nadal nie jest kompletne.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/19-eodhd-coverage-over-time.png}
+    \caption{Pokrycie danych cenowych spółek z indeksu S\&P 500 w serwisie EODHD.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/20-eodhd-missing-data-reasons.png}
+    \caption{Przyczyny brakujących danych cenowych spółek z indeksu S\&P 500 w serwisie EODHD.}
+    \label{fig:sp500_data_coverage}
+\end{figure}
+
+Widać, że pokrycie jest znacznie lepsze niż w przypadku Yahoo Finance, jednak nadal nie jest kompletne.
+
 
 
 
