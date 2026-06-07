@@ -8,6 +8,7 @@
 % Packages to handle graphics and figures
 \usepackage{graphicx}
 \usepackage{float} % Enables to use [H] for exact figure placement
+\usepackage{enumitem} % Allows to resume numbered lists
 \usepackage{svg} % Allows to include SVG images directly
 \usepackage{svg-extract} % Required to use the extractpath option in svgsetup
 \svgsetup{
@@ -110,6 +111,84 @@ Projekt opiera się na dwóch głównych założeniach:
 
 W związku z tym, analizowane spółki pochodzą wyłącznie z indeksu S\&P 500, co pozwala na realistyczne i porównywalne badanie różnych strategii inwestycyjnych przy zachowaniu spójności danych historycznych.
 
+\section{Dane}
+
+Dane są kluczowym elementem projektu. W ramach analiz wykorzystywane są trzy główne typy danych:
+
+\begin{itemize}
+    \item \textbf{Skład indeksu S\&P 500} – portfele będą tworzone ze spółek wchodzących w skład tego indeksu.
+    \item \textbf{Ceny akcji} – niezbędne do symulacji Monte Carlo oraz do narzędzi analizy technicznej.
+    \item \textbf{Dane techniczne} – wskaźniki wyliczane na podstawie historycznych cen, używane w strategiach opartych na analizie technicznej.
+\end{itemize}
+
+\subsection{Wymagania względem danych}
+
+\begin{enumerate}
+    \item Wszystkie dane muszą mieć charakter \textbf{historyczny}, aby możliwe było poprawne testowanie strategii i modeli w oparciu o warunki rynkowe z przeszłości. Oznacza to, że dane powinny odzwierciedlać stan wiedzy w danym momencie historycznym. Pozwala to uniknąć tzw. \textbf{błędu wyprzedzania} informacji (look-ahead bias), który polega na wykorzystaniu w teście danych niedostępnych w momencie podejmowania decyzji, w tym kontekście decyzji inwestycyjnych o składzie portfeli.
+
+    \item Dane powinny obejmować odpowiednio \textbf{długi okres historyczny}, umożliwiający testowanie strategii inwestycyjnych w dłuższej perspektywie, a nie tylko krótkoterminowych ruchów rynkowych. Inwestowanie to nie spekulacja, wspominając ponownie Grahama.
+
+    \item Dane muszą obejmować również spółki, które wypadły z indeksu, lub \textbf{spółki, które już nie istnieją}, czyli takie, w których wystąpiła jedna z poniższych sytuacji:
+    \begin{itemize}
+        \item bankructwo
+        \item fuzja lub przejęcie (spółka została wchłonięta przez inną)
+        \item delisting / wycofanie z giełdy (np. zmiana statusu prywatnego lub restrukturyzacja)
+    \end{itemize}
+    Jest to konieczne, aby uniknąć \textbf{błędu przeżywalności} (survivorship bias), czyli sytuacji, w której uwzględnia się wyłącznie spółki przetrwałe. Błąd przeżywalności i błąd wyprzedzania w praktyce mają podobny efekt – w backtestingu modele lub strategie dysponują informacjami o przyszłości, które w rzeczywistości nie były dostępne w danym momencie. Skutkuje to zawyżeniem stóp zwrotu i efektywności strategii, prowadząc do mylnych wniosków o ich skuteczności.
+
+    Poniższa mapa cieplna przedstawia komponenty indeksu S\&P 500 z ich 10-letnimi stopami zwrotu. Średnia ważona stopa zwrotu tych spółek jest znacznie wyższa niż 10-letnia stopa zwrotu samego indeksu, którego skład zmieniał się w tym czasie. Ten przykład doskonale ilustruje, jak błąd przeżywalności może nierealistycznie zawyżyć wyniki.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\textwidth]{notebooks/images/6-sp500-etf-components-10y-returns.png}
+        \caption{10-letnie stopy zwrotu komponentów S\&P 500 ETF (2026.03.24)~\cite{marketscreener:heatmap}.}
+        \label{fig:sp500_heatmap}
+    \end{figure}
+
+    \item Dane muszą być \textbf{skorygowane o splity akcji} (podział akcji zwiększający ich liczbę w obrocie) oraz o \textbf{dywidendy} (część zysku przedsiębiorstwa wypłacana akcjonariuszom).
+
+    \item Dane cenowe powinny mieć \textbf{spójną częstotliwość} (np. dzienne EOD, tygodniowe, miesięczne), aby umożliwić porównywalne analizy.
+
+    \item Dane powinny być \textbf{wysokiej jakości} - wolne od błędów, braków oraz duplikatów.
+\end{enumerate}
+
+\subsection{Dane o składzie indeksu}
+
+Do pozyskania danych o składzie indeksu S\&P 500 przydatny jest projekt projekt \textbf{fja05680/sp500}~\cite{github:sp500} na GitHub. Zawiera on zarówno aktualną, jak i historyczną listę spółek wchodzących w skład indeksu oraz przykładowe notebooki umożliwiające pobranie tych danych. Projekt jest regularnie aktualizowany, co zapewnia dostęp do aktualnych informacji o składzie indeksu. Jednakże, jak sam autor podkreśla, nie ma gwarancji, iż wszystkie dane są w 100\% prawidłowe.
+
+\subsubsection{Dane o aktualnym składzie indeksu}
+
+Aktualny skład indeksu jest pozyskiwany z \textbf{Wikipedii}~\cite{wiki:sp500_list}.
+
+\subsubsection{Dane o historycznym składzie indeksu}
+
+Historyczny skład indeksu jest budowany na podstawie pliku S\&P 500 Historical Components \& Changes, udostępnionego wraz z książką \textit{Trading Evolved}~\cite{clenow:trading} autorstwa Andreas Clenow, który obejmuje okres 1996–2019. Następnie dane są ręcznie aktualizowane o zmiany po 2019 roku na podstawie informacji z Wikipedia oraz dodatkowych źródeł internetowych, ponieważ sekcja „Selected Changes” nie zawiera pełnej historii modyfikacji indeksu. Końcowy zbiór danych powstaje poprzez scalenie oryginalnego pliku z późniejszymi zmianami oraz wykonanie podstawowego czyszczenia danych, co pozwala uzyskać aktualny plik obejmujący pełną historię zmian składu indeksu.
+
+Na podstawie poniższego wykresu przedstawiającego liczbę spółek wchodzących do indeksu na początku każdego roku widać, że mimo nazwy „S\&P 500” liczba komponentów nie zawsze wynosi dokładnie 500.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/7-sp500-companies-per-year-start.png}
+    \caption{Liczba spółek w indeksie S\&P 500 na początku każdego roku.}
+    \label{fig:sp500_count}
+\end{figure}
+
+Na przestrzeni ostatnich 30 lat można zauważyć spadek rotacji w indeksie w porównaniu z okresem bańki internetowej w 2000 roku oraz latami poprzedzającymi kryzys 2008 roku, a v ciągu ostatnich 15 lat rotacja ustabilizowała się na poziomie około 20 spółek rocznie. Zmiany w składzie indeksu oraz częstotliwość selekcji będą miały wpływ na skład tworzonych portfeli.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/8-sp500-yearly-changes.png}
+    \caption{Roczna liczba spółek wchodzących i wychodzących z indeksu S\&P 500.}
+    \label{fig:sp500_changes}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/9-sp500-unique-companies.png}
+    \caption{Kumulatywna liczba unikalnych spółek wchodzących w skład indeksu S\&P 500.}
+    \label{fig:sp500_unique}
+\end{figure}
+
 \begin{thebibliography}{9}
 
 \bibitem{wiki:sp500}
@@ -138,6 +217,18 @@ Barber, B. M., \& Odean, T., \textit{Trading Is Hazardous to Your Wealth: The Co
 
 \bibitem{msci:world}
 MSCI, \textit{MSCI World Index}, dostępny w Internecie: \url{https://www.msci.com/indexes/index/990100} [dostęp: 2026-06-07].
+
+\bibitem{marketscreener:heatmap}
+MarketScreener, \textit{S\&P 500 ETF Components Heatmap}, dostępny w Internecie: \url{https://www.marketscreener.com/quote/index/S-P-500-4985/heatmap/} [dostęp: 2026-06-07].
+
+\bibitem{github:sp500}
+fja05680, \textit{sp500 - S\&P 500 historical components and changes}, GitHub: \url{https://github.com/fja05680/sp500} [dostęp: 2026-06-07].
+
+\bibitem{wiki:sp500_list}
+Wikipedia, \textit{List of S\&P 500 companies}, dostępny w Internecie: \url{https://en.wikipedia.org/wiki/List_of_S\%26P_500_companies} [dostęp: 2026-06-07].
+
+\bibitem{clenow:trading}
+Clenow, A. F., \textit{Trading Evolved: Anyone Can Build Killer Trading Strategies in Python}, 2019.
 
 \end{thebibliography}
 
