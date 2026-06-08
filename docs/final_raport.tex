@@ -1,16 +1,16 @@
 \documentclass[12pt, a4paper]{article}
 
-% Packages for better formatting and Polish language support
+% Packages for Polish language formatting
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[polish]{babel}
 
-% Packages for math and technical symbols
+% Packages for math
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 
-% Packages to handle graphics and figures
+% Packages for graphics and figures
 \usepackage{graphicx}
 \usepackage{float} % Enables to use [H] for exact figure placement
 \usepackage{svg} % Allows to include SVG images directly
@@ -23,7 +23,8 @@
 % Package for title spacing
 \usepackage{titling}
 
-% Package for better tables
+% Links and URLs
+\usepackage{xurl} % Breaks long URLs anywhere
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
@@ -35,11 +36,13 @@
 \usepackage{listings}
 \usepackage{xcolor}
 
+% Define custom colors for syntax highlighting
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
+% Configuration for Python code blocks
 \lstdefinestyle{pythonstyle}{
     backgroundcolor=\color{backcolour},
     commentstyle=\color{codegreen},
@@ -62,7 +65,7 @@
 
 \title{\textbf{Raport Końcowy} \\ \large Selekcja i optymalizacja portfela spółek giełdowych z wykorzystaniem symulacji Monte Carlo \\ \normalsize Projekt Indywidualny}
 \author{Michał Ludwiczak}
-\date{2026.06.07}
+\date{8 czerwca 2026 r.}
 
 \begin{document}
 
