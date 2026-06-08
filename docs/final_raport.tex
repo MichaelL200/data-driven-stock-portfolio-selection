@@ -99,7 +99,7 @@ Indeks jest również odpowiednio zdywersyfikowany – spółki należą do ró�
     \label{fig:sp500_sectors}
 \end{figure}
 
-Największe 7 spółek w indeksie S\&P 500 are określane jako Wspaniała Siódemka (The Magnificent Seven). Ich znaczący udział w kapitalizacji indeksu sprawia, że mają one nieproporcjonalnie duży wpływ na jego wyniki, co przedstawiono na rysunku~\ref{fig:sp500_mag7}.
+Największe 7 spółek w indeksie S\&P 500 są określane jako Wspaniała Siódemka (The Magnificent Seven). Ich znaczący udział w kapitalizacji indeksu sprawia, że mają one nieproporcjonalnie duży wpływ na jego wyniki, co przedstawiono na rysunku~\ref{fig:sp500_mag7}.
 
 \begin{figure}[H]
     \centering
@@ -122,7 +122,7 @@ Wpływ podatków także nie jest uwzględniany, co pozwala skupić się wyłącz
 
 \subsection{Inwestorzy VS Indeks}
 
-W teorii, odpowiednio dobrany portfel uzyskać lepsze wyniki niż sam indeks S\&P 500 poprzez selekcję spółek o lepszych perspektywach oraz optymalną alokację wag. W praktyce jest to trudne, na co wskazują dane raportu \textbf{SPIVA® U.S. Year-End 2025}~\cite{spiva:2025} - w 2025 roku 79\% wszystkich aktywnych funduszy akcyjnych o dużej kapitalizacji w Stanach Zjednoczonych osiągnęło wyniki gorsze od indeksu S\&P 500.
+W teorii, odpowiednio dobrany portfel powinien uzyskać lepsze wyniki niż sam indeks S\&P 500 poprzez selekcję spółek o lepszych perspektywach oraz optymalną alokację wag. W praktyce jest to trudne, na co wskazują dane raportu \textbf{SPIVA® U.S. Year-End 2025}~\cite{spiva:2025} - w 2025 roku 79\% wszystkich aktywnych funduszy akcyjnych o dużej kapitalizacji w Stanach Zjednoczonych osiągnęło wyniki gorsze od indeksu S\&P 500.
 
 \begin{figure}[H]
     \centering
@@ -202,9 +202,26 @@ Do pozyskania danych o składzie indeksu S\&P 500 przydatny jest projekt projekt
 
 Aktualny skład indeksu jest pozyskiwany z \textbf{Wikipedii}~\cite{wiki:sp500_list}.
 
+\begin{table}[H]
+\centering
+\caption{Fragment danych o spółkach wchodzących w skład indeksu S\&P 500.}
+\label{tab:sp500_companies}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{|r|l|l|l|l|l|l|r|r|}
+\hline
+& \textbf{Symbol} & \textbf{Security} & \textbf{GICS Sector} & \textbf{GICS Sub-Industry} & \textbf{Headquarters Location} & \textbf{Date added} & \textbf{CIK} & \textbf{Founded} \\ \hline
+0 & MMM & 3M & Industrials & Industrial Conglomerates & Saint Paul, Minnesota & 1957-03-04 & 66740 & 1902 \\ \hline
+1 & AOS & A. O. Smith & Industrials & Building Products & Milwaukee, Wisconsin & 2017-07-26 & 91142 & 1916 \\ \hline
+\dots & \dots & \dots & \dots & \dots & \dots & \dots & \dots & \dots \\ \hline
+501 & ZBH & Zimmer Biomet & Health Care & Health Care Equipment & Warsaw, Indiana & 2001-08-07 & 1136869 & 1927 \\ \hline
+502 & ZTS & Zoetis & Health Care & Pharmaceuticals & Parsippany, New Jersey & 2013-06-21 & 1555280 & 1952 \\ \hline
+\end{tabular}
+}
+\end{table}
+
 \subsubsection{Dane o historycznym składzie indeksu}
 
-Historyczny skład indeksu jest budowany na podstawie pliku S\&P 500 Historical Components \& Changes, udostępnionego wraz z książką \textit{Trading Evolved}~\cite{clenow:trading} autorstwa Andreas Clenow, który obejmuje okres 1996–2019. Następnie dane are ręcznie aktualizowane o zmiany po 2019 roku na podstawie informacji z Wikipedia oraz dodatkowych źródeł internetowych, ponieważ sekcja „Selected Changes” nie zawiera pełnej historii modyfikacji indeksu. Końcowy zbiór danych powstaje poprzez scalenie oryginalnego pliku z późniejszymi zmianami oraz wykonanie podstawowego czyszczenia danych, co pozwala uzyskać aktualny plik obejmujący pełną historię zmian składu indeksu.
+Historyczny skład indeksu jest budowany na podstawie pliku S\&P 500 Historical Components \& Changes, udostępnionego wraz z książką \textit{Trading Evolved}~\cite{clenow:trading} autorstwa Andreas Clenow, który obejmuje okres 1996–2019. Następnie dane są ręcznie aktualizowane o zmiany po 2019 roku na podstawie informacji z Wikipedia oraz dodatkowych źródeł internetowych, ponieważ sekcja „Selected Changes” nie zawiera pełnej historii modyfikacji indeksu. Końcowy zbiór danych powstaje poprzez scalenie oryginalnego pliku z późniejszymi zmianami oraz wykonanie podstawowego czyszczenia danych, co pozwala uzyskać aktualny plik obejmujący pełną historię zmian składu indeksu.
 
 Na podstawie poniższego wykresu przedstawiającego liczbę spółek wchodzących do indeksu na początku każdego roku widać, że mimo nazwy „S\&P 500” liczba komponentów nie zawsze wynosi dokładnie 500.
 
@@ -276,6 +293,8 @@ Poniższy fragment danych – dzień przed, w dniu oraz dzień po splicie akcji 
     \caption{Historia cen akcji Apple (AAPL).}
     \label{fig:apple_price}
 \end{figure}
+
+\newpage
 
 \paragraph{Uzyskanie danych o indeksie} \leavevmode \\
 
@@ -439,6 +458,8 @@ dataset.EODHD.download(
 
 Aby pobrać dane o spółkach wycofanych z giełdy trzeba zmapować tickery z submodułu sp500, na te, które istnieją na liście wycofanych tickerów w EODHD.
 
+\paragraph{Ile danych brakuje?} \leavevmode \\
+
 Poniżej wykres przedstawiający pokrycie dla EODHD oraz diagram przyczyn brakujących danych. Widać, że pokrycie jest znacznie lepsze niż w przypadku Yahoo Finance, jednak nadal nie jest kompletne.
 
 \begin{figure}[H]
@@ -480,7 +501,7 @@ Aby ograniczyć wpływ błędu przeżywalności, należy uwzględnić zwroty z a
 
 W praktyce najlepiej połączyć oba podejścia.
 
-\paragraph{Imputacja}
+\paragraph{Imputacja} \leavevmode \\
 
 Jednym ze sposobów imputacji jest wprowadzenie pomocniczego tickera, który reprezentuje spółki bez dostępnych danych. Następnie uwzględnia się go w modelach każdej strategii proporcjonalnie do poziomu pokrycia. Najpierw oblicza się średnią stopę zwrotu dla spółek z dostępnymi danymi, a następnie estymuje średni zwrot brakującej części tak, aby całość była spójna ze stopą zwrotu indeksu:
 
@@ -584,7 +605,14 @@ Ponownie - te wyniki strategii również należy brać z ostrożnością. W taki
 
 \subsection{Porównanie strategii}
 
-Spośród analizowanych strategii najlepsze wyniki osiągnęła strategia Monte Carlo, której końcowa wartość przekroczyła 1600 (przy wartości początkowej równej 100). Dla porównania strategia losowa osiągnęła około 1200, natomiast strategia najwyższego współczynnika Sharpe'a około 1000. Wszystkie strategie znacząco przewyższyły benchmark, którego końcowa wartość wyniosła około 800. Ze względu na zaskakująco dobre wyniki strategii Random przy rebalansowaniu kwartalnym, może stanowić ona bardziej wymagający punkt odniesienia niż sam benchmark.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{reports/figures/27-strategies-comparision.png}
+    \caption{Porównanie wyników wszystkich trzech strategii z doborem kwartalnym w porównaniu z benchmarkiem S\&P 500.}
+    \label{fig:strategy_comparison}
+\end{figure}
+
+Spośród analizowanych strategii najlepsze wyniki osiągnęła strategia Monte Carlo, której końcowa wartość przekroczyła 1600 (przy wartości początkowej równej 100). Dla porównania strategia losowa osiągnęła około 1200, natomiast strategia najwyższego współczynnika Sharpe'a około 1000. Wszystkie strategie znacząco przewyższyły benchmark, którego końcowa wartość wyniosła około 800. Ze względu na zaskakująco dobre wyniki strategii losowej przy rebalansowaniu kwartalnym, może stanowić ona lepszy punkt odniesienia niż sam benchmark.
 
 Przewagę strategii Monte Carlo bazującej na losowaniu całych portfeli można tłumaczyć korzyściami płynącymi z dywersyfikacji. W tej metodzie spośród wielu losowo wygenerowanych portfeli wybierany jest ten o najwyższym współczynniku Sharpe'a, uwzględniającym zarówno oczekiwaną stopę zwrotu, jak i ryzyko całego portfela. Dzięki temu możliwe jest znalezienie kombinacji spółek, których wzajemne korelacje prowadzą do obniżenia zmienności portfela przy zachowaniu wysokich stóp zwrotu. Z kolei strategia oparta na wyborze N spółek o najwyższym historycznym współczynniku Sharpe'a nie uwzględnia zależności pomiędzy aktywami. Może to skutkować koncentracją portfela w spółkach o podobnym profilu ryzyka lub należących do tych samych sektorów, ograniczając efekty dywersyfikacji i prowadząc do słabszych wyników inwestycyjnych.
 
@@ -608,7 +636,7 @@ Random (Monthly) & 0.2485 \\ \hline
 \end{tabular}
 \end{table}
 
-Tabela współczynników Sharpe'a rozszerza obraz o pozostałe częstotliwości rebalansowania. Patrząc tylko na dobór kwartalny, Monte Carlo osiąga najwyższy współczynnik Sharpe'a (\textasciitilde{}0{,}64) spośród trzech strategii, wyprzedzając strategię losową (\textasciitilde{}0{,}55) i strategię najwyższego współczynnika Sharpe'a (\textasciitilde{}0{,}53), co jest spójne z wykresem.
+Tabela współczynników Sharpe'a rozszerza obraz o pozostałe częstotliwości doboru. Patrząc tylko na dobór kwartalny, Monte Carlo osiąga najwyższy współczynnik Sharpe'a (\textasciitilde{}0{,}64) spośród trzech strategii, wyprzedzając strategię losową (\textasciitilde{}0{,}55) i strategię najwyższego współczynnika Sharpe'a (\textasciitilde{}0{,}53), co jest spójne z wykresem.
 
 W szerszym zestawieniu najwyższy współczynnik Sharpe'a osiąga roczna strategia najwyższego współczynnika Sharpe'a (\textasciitilde{}0{,}66), co sugeruje, że ta strategia przy dłuższym horyzoncie rebalansowania lepiej kontroluje ryzyko. Razem z kwartalną strategią Monte Carlo osiąga wynik lepszy od benchmarku. Dobór miesięczny we wszystkich trzech strategiach wypada konsekwentnie najsłabiej, co jest spójne z wcześniejszymi obserwacjami.
 
@@ -616,7 +644,7 @@ W szerszym zestawieniu najwyższy współczynnik Sharpe'a osiąga roczna strateg
 
 \subsection{Obserwacje, ograniczenia i wnioski}
 
-Projekt składał się z \textbf{dwóch głównych etapów} — utworzenia zbioru danych oraz opracowania i przetestowania strategii inwestycyjnych. Pierwszy z nich okazał się znacznie bardziej czasochłonny i złożony, ale jednocześnie kluczowy dla całego przedsięwzięcia, ponieważ bez odpowiedniej jakości danych wyniki strategii byłyby mało reprezentatywne. \textbf{Trudność} tego etapu wynikała z faktu, że żadne z wykorzystanych źródeł nie zapewniało pełnego pokrycia danych, a w przypadku serwisu EODHD zwiększanie pokrycia dla brakujących tickerów wymagało analizowania historii spółek i ręcznego mapowania ich oznaczeń.
+Projekt składał się z \textbf{dwóch głównych etapów} - utworzenia zbioru danych oraz opracowania i przetestowania strategii inwestycyjnych. Pierwszy z nich okazał się znacznie bardziej czasochłonny i złożony, ale jednocześnie kluczowy dla całego przedsięwzięcia, ponieważ bez odpowiedniej jakości danych wyniki strategii byłyby mało reprezentatywne. \textbf{Trudność} tego etapu wynikała z faktu, że żadne z wykorzystanych źródeł nie zapewniało pełnego pokrycia danych, a w przypadku serwisu EODHD zwiększanie pokrycia dla brakujących tickerów wymagało analizowania historii spółek i ręcznego mapowania ich oznaczeń.
 
 Pomimo że celem projektu nie było pokonanie benchmarku (Sharpe $S \approx 0{,}56$), udało się to osiągnąć w przypadku dwóch utworzonych strategii:
 
@@ -630,18 +658,19 @@ Rezultaty te nie gwarantują jednak, że strategie przynosiłyby lepsze wyniki n
 \begin{enumerate}
     \item Najbardziej fundamentalny z nich dotyczy \textbf{jakości danych}. Dane pobrane z obu serwisów nie mają pełnego pokrycia, co wprowadza błąd wyprzedzania, a próby jego ograniczenia również obarczone są niepewnością. Dodatkowo w utworzonym zbiorze danych mogą występować błędy wynikające ze sklejenia szeregów czasowych z dwóch źródeł, nieuwzględnienia splitów i scaleń akcji lub niejednolitego pokrycia danych w czasie. W przypadku nietypowych, skrajnych dziennych zmian cen, będących oczywistymi błędami danych, ich wpływ nie był uwzględniany podczas testowania stóp zwrotu portfeli.
     \item Fakt, że kwartalna \textbf{strategia losowa} daje lepsze zwroty niż benchmark jest sygnałem ostrzegawczym.
-    \item Nawet przy założeniu braku wpływu dwóch powyższych czynników, historyczne wyniki strategii nie gwarantują podobnych rezultatów w przyszłości. \textbf{Przeszłe stopy zwrotu nie stanowią gwarancji przyszłych wyników}, a rynek finansowy podlega ciągłym zmianom.
+    \item Nie ma gwarancji, że przyjęty \textbf{historyczny skład indeksu} S\&P 500 jest poprawny.
+    \item Nawet przy założeniu braku wpływu powyższych czynników, historyczne wyniki strategii nie gwarantują podobnych rezultatów w przyszłości. \textbf{Przeszłe stopy zwrotu nie stanowią gwarancji przyszłych wyników}, a rynek finansowy podlega ciągłym zmianom.
 \end{enumerate}
 
 \subsection{Przemyślenia i rozszerzenia}
 
-Sam projekt docelowo miał być bardziej rozbudowany i skoncentrowany na budowie strategii inwestycyjnych niż na przygotowaniu zbioru danych, jednak w praktyce ten drugi element okazał się niezbędny dla poprawnego działania całości. Z perspektywy czasu uważam, że w tego typu projektach warto jak najszybciej zbudować minimalną, działającą wersję systemu, nawet jeśli początkowo jest ona mocno uproszczona.
+Sam projekt docelowo miał być bardziej rozbudowany i skoncentrowany na budowie strategii inwestycyjnych niż na przygotowaniu zbioru danych, jednak w praktyce ten drugi element okazał się niezbędny dla poprawnego działania całości i ostatecznie przeważył. Z perspektywy czasu uważam, że w tego typu projektach warto jak najszybciej zbudować minimalną, działającą wersję systemu, nawet jeśli początkowo jest ona mocno uproszczona.
 
-Moim wnioskiem z pracy nad projektem jest to, że bardziej efektywne jest \textbf{podejście iteracyjne} — rozpoczęcie od najprostszej wersji pipeline’u danych i strategii, a następnie ich stopniowe rozszerzanie. Pozwala to szybciej uzyskiwać pierwsze rezultaty, lepiej rozumieć ograniczenia systemu oraz sprawniej identyfikować kluczowe problemy.
+Moim wnioskiem z pracy nad projektem jest to, że bardziej efektywne jest \textbf{podejście iteracyjne} - rozpoczęcie od najprostszej wersji pipeline’u danych i strategii, a następnie ich stopniowe rozszerzanie. Pozwala to szybciej uzyskiwać pierwsze rezultaty, lepiej rozumieć ograniczenia systemu oraz sprawniej identyfikować kluczowe problemy.
 
 W obecnym podejściu prace były realizowane w \textbf{sposób sekwencyjny}, z naciskiem na maksymalne dopracowanie kolejnych etapów przed przejściem do następnych. Z perspektywy projektu okazało się to mniej elastyczne i wydłużyło moment uzyskania działających rezultatów. W przyszłości bardziej naturalne wydaje się rozpoczęcie od prostego rdzenia systemu, a następnie jego stopniowe rozwijanie w kierunku elementów najbardziej wpływających na jakość wyników.
 
-Istniejący projekt stanowi solidną bazę, którą można w przyszłości \textbf{rozszerzyć} o bardziej zaawansowane podejścia do budowy strategii inwestycyjnych. Naturalnym kierunkiem dalszego rozwoju jest uwzględnienie metod opartych na analizie technicznej oraz fundamentalnej, a także wykorzystanie bardziej złożonych technik uczenia maszynowego do selekcji spółek i optymalizacji portfela.
+Istniejący projekt stanowi solidną bazę, którą można w przyszłości \textbf{rozszerzyć} o bardziej zaawansowane podejścia do budowy strategii inwestycyjnych. Naturalnym kierunkiem dalszego rozwoju jest uwzględnienie metod opartych na analizie technicznej oraz fundamentalnej i innych danych o spółkach, a także wykorzystanie bardziej złożonych technik uczenia maszynowego do selekcji spółek i optymalizacji portfela.
 
 \begin{thebibliography}{9}
 
