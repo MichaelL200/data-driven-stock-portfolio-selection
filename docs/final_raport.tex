@@ -4,7 +4,6 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[polish]{babel}
-\usepackage{indentfirst} % Indents the first paragraph of each section
 
 % Packages for math and technical symbols
 \usepackage{amsmath}
@@ -20,6 +19,9 @@
     extractpath=docs/svg-inkscape,
     clean=true
 } % Set directory for svg-inkscape artifacts and clean temp files
+
+% Package for title spacing
+\usepackage{titling}
 
 % Package for better tables
 \usepackage{hyperref}
@@ -64,8 +66,9 @@
 
 \begin{document}
 
+\setlength{\droptitle}{-3cm}
 \maketitle
-
+\vspace{-0.5cm}
 \tableofcontents
 \newpage
 
@@ -515,7 +518,7 @@ Można zauważyć, że w okresie bańki internetowej w okolicach roku 2000 sztuc
     \label{fig:ew_vs_observed_with_missing}
 \end{figure}
 
-\subsection{Tworzenie strategii}
+\section{Tworzenie strategii}
 
 Przy doborze portfeli inwestycyjnych jednym z kluczowych parametrów jest \textbf{liczba spółek wchodzących} w ich skład. Liczba ta może być zmienna — co często występuje w portfelach aktywnie zarządzanych — lub stała, co jest typowe dla portfeli dobieranych automatycznie według określonych reguł.
 
