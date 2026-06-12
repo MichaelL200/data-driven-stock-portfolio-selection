@@ -135,7 +135,7 @@ Od 2001 do 2025 tylko w latach 2005, 2007 i 2009 udało się pobić S\&P 500 wi�
 
 Inwestorzy indywidualni również często nie osiągają wyników lepszych od indeksu. Według raportu \textbf{DALBAR – Quantitative Analysis of Investor Behavior (QAIB) 2024}~\cite{dalbar:2024}, przeciętny inwestor giełdowy uzyskał stopę zwrotu na poziomie 16,54\%, podczas gdy indeks S\&P 500 osiągnął 25,02\%. Różnica 848 punktów bazowych była drugą największą w ciągu ostatniej dekady, co pokazuje, że większość inwestorów detalicznych systematycznie nie dorównuje wynikowi szerokiego rynku.
 
-Badania akademickie, takie jak \textbf{Trading Is Hazardous to Your Wealth (Berkeley)}~\cite{berkeley:trading}, wskazują, że realne decyzje inwestorów indywidualnych – częste kupno i sprzedaż akcji, próby „timingu” rynku oraz reakcje emocjonalne – znacząco obniżają ich wyniki w porównaniu z prostą strategią buy-and-hold indeksu S\&P 500. W przypadku inwestorów indywidualnych często dochodzi do mylenia roli \textbf{inwestora} z rolą \textbf{spekulanta}, jak wskazuje Benjamin Graham w klasycznej literaturze inwestycyjnej: wielu uczestników rynku podejmuje decyzje krótkoterminowe, oczekując szybkich zysków, zamiast koncentrować się na długoterminowej wartości spółki.
+Badania akademickie, takie jak \textbf{Trading Is Hazardous to Your Wealth (Berkeley)}~\cite{berkeley:trading}, wskazują, że realne decyzje inwestorów indywidualnych – częste kupno i sprzedaż akcji, próby „timingu” rynku oraz reakcje emocjonalne – znacząco obniżają ich wyniki w porównaniu z prostą strategią buy-and-hold indeksu S\&P 500. W przypadku inwestorów indywidualnych często dochodzi do mylenia roli \textbf{inwestora} z rolą \textbf{spekulanta}, jak wskazuje Benjamin Graham \cite{graham:intelligent} w klasycznej literaturze inwestycyjnej: wielu uczestników rynku podejmuje decyzje krótkoterminowe, oczekując szybkich zysków, zamiast koncentrować się na długoterminowej wartości spółki.
 
 \subsection{Cel projektu}
 
@@ -620,27 +620,27 @@ Ponownie - te wyniki strategii również należy brać z ostrożnością. W taki
     \label{fig:strategy_comparison}
 \end{figure}
 
-Spośród analizowanych strategii najlepsze wyniki osiągnęła strategia Monte Carlo, której końcowa wartość przekroczyła 1600 (przy wartości początkowej równej 100). Dla porównania strategia losowa osiągnęła około 1200, natomiast strategia najwyższego współczynnika Sharpe'a około 1000. Wszystkie strategie znacząco przewyższyły benchmark, którego końcowa wartość wyniosła około 800. Ze względu na zaskakująco dobre wyniki strategii losowej przy rebalansowaniu kwartalnym, może stanowić ona lepszy punkt odniesienia niż sam benchmark.
+Spośród analizowanych strategii najlepsze wyniki osiągnęła strategia Monte Carlo, której końcowa wartość przekroczyła 1500 (przy wartości początkowej równej 100). Dla porównania strategia losowa osiągnęła około 1200, natomiast strategia najwyższego współczynnika Sharpe'a około 1000. Wszystkie strategie znacząco przewyższyły benchmark, którego końcowa wartość wyniosła około 800. Ze względu na zaskakująco dobre wyniki strategii losowej przy rebalansowaniu kwartalnym, może stanowić ona lepszy punkt odniesienia niż sam benchmark.
 
 Przewagę strategii Monte Carlo bazującej na losowaniu całych portfeli można tłumaczyć korzyściami płynącymi z dywersyfikacji. W tej metodzie spośród wielu losowo wygenerowanych portfeli wybierany jest ten o najwyższym współczynniku Sharpe'a, uwzględniającym zarówno oczekiwaną stopę zwrotu, jak i ryzyko całego portfela. Dzięki temu możliwe jest znalezienie kombinacji spółek, których wzajemne korelacje prowadzą do obniżenia zmienności portfela przy zachowaniu wysokich stóp zwrotu. Z kolei strategia oparta na wyborze N spółek o najwyższym historycznym współczynniku Sharpe'a nie uwzględnia zależności pomiędzy aktywami. Może to skutkować koncentracją portfela w spółkach o podobnym profilu ryzyka lub należących do tych samych sektorów, ograniczając efekty dywersyfikacji i prowadząc do słabszych wyników inwestycyjnych.
 
 \begin{table}[H]
 \centering
-\caption{Porównanie współczynników Sharpe'a dla poszczególnych strategii i częstotliwości doboru portfela.}
+\caption{Porównanie współczynników Sharpe'a i wartości końcowych dla poszczególnych strategii i częstotliwości doboru portfela.}
 \label{tab:sharpe_comparison}
-\begin{tabular}{|l|r|}
+\begin{tabular}{|l|r|r|}
 \hline
-\textbf{strategy} & \textbf{sharpe\_ratio} \\ \hline
-Best Sharpe (Yearly) & 0.6589 \\ \hline
-Monte Carlo (Quarterly) & 0.6379 \\ \hline
-Benchmark & 0.5620 \\ \hline
-Random (Quarterly) & 0.5532 \\ \hline
-Monte Carlo (Yearly) & 0.5285 \\ \hline
-Best Sharpe (Quarterly) & 0.5285 \\ \hline
-Monte Carlo (Monthly) & 0.4043 \\ \hline
-Best Sharpe (Monthly) & 0.4037 \\ \hline
-Random (Yearly) & 0.3071 \\ \hline
-Random (Monthly) & 0.2485 \\ \hline
+\textbf{Strategia} & \textbf{Współczynnik Sharpe'a} & \textbf{Wartość końcowa} \\ \hline
+Best Sharpe (Yearly) & \textbf{0.6589} & \textbf{2184.42} \\ \hline
+Monte Carlo (Quarterly) & 0.6379 & 1577.00 \\ \hline
+Benchmark & 0.5620 & 816.18 \\ \hline
+Random (Quarterly) & 0.5532 & 1168.41 \\ \hline
+Monte Carlo (Yearly) & 0.5285 & 973.65 \\ \hline
+Best Sharpe (Quarterly) & 0.5285 & 1020.34 \\ \hline
+Monte Carlo (Monthly) & 0.4043 & 462.19 \\ \hline
+Best Sharpe (Monthly) & 0.4037 & 481.39 \\ \hline
+Random (Yearly) & 0.3071 & 301.06 \\ \hline
+Random (Monthly) & 0.2485 & 214.02 \\ \hline
 \end{tabular}
 \end{table}
 
@@ -680,7 +680,7 @@ W obecnym podejściu prace były realizowane w \textbf{sposób sekwencyjny}, z n
 
 Istniejący projekt stanowi solidną bazę, którą można w przyszłości \textbf{rozszerzyć} o bardziej zaawansowane podejścia do budowy strategii inwestycyjnych. Naturalnym kierunkiem dalszego rozwoju jest uwzględnienie metod opartych na analizie technicznej oraz fundamentalnej i innych danych o spółkach, a także wykorzystanie bardziej złożonych technik uczenia maszynowego do selekcji spółek i optymalizacji portfela.
 
-\begin{thebibliography}{16}
+\begin{thebibliography}{17}
 
 \bibitem{wiki:sp500}
 Wikipedia, \textit{S\&P 500}, dostępny w Internecie: \url{https://pl.wikipedia.org/wiki/S\%26P_500} [dostęp: 2026-06-07].
@@ -705,6 +705,9 @@ DALBAR, \textit{Quantitative Analysis of Investor Behavior (QAIB) 2024}, dostęp
 
 \bibitem{berkeley:trading}
 Barber, B. M., \& Odean, T., \textit{Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors}, dostępny w Internecie: \url{https://faculty.haas.berkeley.edu/odean/papers\%20current\%20versions/individual_investor_performance_final.pdf} [dostęp: 2026-06-07].
+
+\bibitem{graham:intelligent}
+Graham, B., \textit{The Intelligent Investor: The Definitive Book on Value Investing}
 
 \bibitem{msci:world}
 MSCI, \textit{MSCI World Index}, dostępny w Internecie: \url{https://www.msci.com/indexes/index/990100} [dostęp: 2026-06-07].
