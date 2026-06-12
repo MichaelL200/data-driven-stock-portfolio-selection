@@ -65,7 +65,7 @@
 
 \title{\textbf{Raport Końcowy} \\ \large Selekcja i optymalizacja portfela spółek giełdowych z wykorzystaniem symulacji Monte Carlo \\ \normalsize Projekt Indywidualny}
 \author{Michał Ludwiczak}
-\date{8 czerwca 2026 r.}
+\date{12 czerwca 2026 r.}
 
 \begin{document}
 
@@ -573,11 +573,19 @@ Można zauważyć, że strategia losowa dla częstszego doboru radzi sobie wyra�
 W przypadku metody Monte Carlo dochodzi kolejny czynnik — \textbf{okno wstecz}, które przyjąłem za rok, a więc w przybliżeniu 252 dni handlowych.
 
 W poniższej strategii Monte Carlo to losowanie wielu portfeli, a nie symulacja ścieżek cen dla pojedynczych spółek. Dla każdej daty rebalansu wybiera się aktywne spółki z indeksu i zostawia te z wystarczającą liczbą obserwacji w oknie wstecz.
-Dla każdej spółki liczę średni dzienny zwrot i zmienność, po czym losuje się określoną liczbę portfeli (przyjęto: 500) po $N$ spółek. Wybrany portfel to ten o najwyższym współczynniku Sharpe'a, definiowanym jako:
+Dla każdej spółki liczę średni dzienny zwrot i zmienność, po czym losuje się określoną liczbę portfeli (przyjęto: 500) po $N$ spółek. Wybrany portfel to ten o najwyższym współczynniku Sharpe'a~\cite{wiki:sharpe}, obliczanym według wzoru:
 \[
 S = \frac{\mu - r_f}{\sigma}
 \]
-W tej pracy przyjmuję $r_f = 0$, więc sprowadza się on do ilorazu średniego zwrotu i zmienności.
+gdzie:
+\begin{itemize}
+    \item $S$ -- współczynnik Sharpe'a,
+    \item $\mu$ -- średnia stopa zwrotu portfela w danym okresie,
+    \item $r_f$ -- średnia stopa zwrotu wolna od ryzyka w danym okresie,
+    \item $\sigma$ -- odchylenie standardowe stopy zwrotu portfela w danym okresie.
+\end{itemize}
+
+W tej pracy przyjmuję $r_f = 0$, ponieważ celem jest jedynie relatywne porównanie portfeli, co sprowadza wskaźnik do ilorazu średniego zwrotu i zmienności
 
 \begin{figure}[H]
     \centering
@@ -672,7 +680,7 @@ W obecnym podejściu prace były realizowane w \textbf{sposób sekwencyjny}, z n
 
 Istniejący projekt stanowi solidną bazę, którą można w przyszłości \textbf{rozszerzyć} o bardziej zaawansowane podejścia do budowy strategii inwestycyjnych. Naturalnym kierunkiem dalszego rozwoju jest uwzględnienie metod opartych na analizie technicznej oraz fundamentalnej i innych danych o spółkach, a także wykorzystanie bardziej złożonych technik uczenia maszynowego do selekcji spółek i optymalizacji portfela.
 
-\begin{thebibliography}{9}
+\begin{thebibliography}{16}
 
 \bibitem{wiki:sp500}
 Wikipedia, \textit{S\&P 500}, dostępny w Internecie: \url{https://pl.wikipedia.org/wiki/S\%26P_500} [dostęp: 2026-06-07].
@@ -718,6 +726,9 @@ Yahoo Finance, dostępny w Internecie: \url{https://finance.yahoo.com/} [dostęp
 
 \bibitem{github:yfinance}
 Ran Aroussi, \textit{yfinance - Yahoo! Finance market data downloader}, GitHub: \url{https://github.com/ranaroussi/yfinance} [dostęp: 2026-06-07].
+
+\bibitem{wiki:sharpe}
+Wikipedia, \textit{Wskaźnik Sharpe’a}, dostępny w Internecie: \url{https://pl.wikipedia.org/wiki/Wska\%C5\%BAnik_Sharpe\%E2\%80\%99a} [dostęp: 2026-06-12].
 
 \end{thebibliography}
 
