@@ -1,5 +1,7 @@
 # Data-driven selection and optimization of a stock portfolio [![Flake8 Linting](https://github.com/Dnafivuq/golem_template/actions/workflows/lint.yml/badge.svg)](https://github.com/Dnafivuq/golem_template/actions/workflows/lint.yml) [![Pytest](https://github.com/Dnafivuq/golem_template/actions/workflows/test.yml/badge.svg)](https://github.com/Dnafivuq/golem_template/actions/workflows/test.yml) <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/"><img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" /></a>
 
+> **Uwaga:** Raport końcowy w języku polskim znajduje się w pliku [docs/Raport Końcowy.pdf](docs/Raport%20Końcowy.pdf).
+
 ### Author: Michał Ludwiczak
 
 ## Overview
@@ -75,7 +77,7 @@ In some cases, the project may serve as a tool or library. For these types of re
 
 ## **Additional Resources**
 - Detailed information about project structure is provided in the [Project Organization](#project-organization) section.
-- Further explanations about model training and evaluation are documented in the `notebooks/` folder.
+- Further explanations about the idea, data and strategies are documented in the `notebooks/` folder.
 
 ## Project Organization
 

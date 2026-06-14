@@ -189,7 +189,6 @@ svg-inkscape/
 docs/svg-inkscape/
 docs/*.log
 docs/*.out
-docs/*.pdf
 docs/*.synctex.gz
 *-svg-tex.*
 *.aux

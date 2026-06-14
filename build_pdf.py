@@ -35,7 +35,7 @@ def main():
 
     # 3. Cross-platform path handling
     tex_file = Path("docs/final_raport.tex")
-    job_name = "docs/Final Raport"
+    job_name = "docs/Raport Końcowy"
 
     if not tex_file.exists():
         print(f"Error: Could not find {tex_file} (run the script from the repo root).", file=sys.stderr)
