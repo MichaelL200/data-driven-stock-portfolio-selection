@@ -94,36 +94,23 @@ In some cases, the project may serve as a tool or library. For these types of re
 │
 ├── models             <- Trained and serialized models, model predictions, or model summaries
 │
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
+├── notebooks          <- Jupyter notebooks.
 │
 ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
 │   └── figures        <- Generated graphics and figures to be used in reporting
 │
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
+├── requirements.txt   <- The requirements file for reproducing the analysis environment.
 │
-├── setup.cfg          <- Configuration file for flake8 and pytest
+├── setup.cfg          <- Configuration file for flake8 and pytest.
 │
-└── src   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes src a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling.py             <- Code for modeling
-    │
-    <!-- ├── modeling
-    │   ├── __init__.py
-    │   ├── predict.py          <- Code to run model inference with trained models
-    │   └── train.py            <- Code to train models
-    │ -->
-    ├── plots.py                <- Code to create visualizations
-    |
-    └── sp500                   <- Submodule to get S&P 500 components
+├── sp500              <- Submodule to get S&P 500 components.
+│
+├── src                <- Source code for use in this project.
+│   ├── config.py      <- Store useful variables and configuration.
+│   ├── dataset.py     <- Scripts to download or generate data.
+│   ├── features.py    <- Code to create features for modeling.
+│   ├── modeling.py    <- Code for modeling.
+│   └── plots.py       <- Code to create visualizations.
+│
+└── tests              <- Unit tests (none).
 ```
